@@ -55,6 +55,7 @@
 #include "artsQueue.h"
 #include "artsTMT.h"
 #include "shadAdapter.h"
+#include "artsTMTLite.h"
 
 artsGuid_t artsEdtCreateShad(artsEdt_t funcPtr, unsigned int route, uint32_t paramc, uint64_t * paramv)
 {

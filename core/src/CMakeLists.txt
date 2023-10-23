@@ -67,7 +67,16 @@ if(CUDA_FOUND)
                     $<TARGET_OBJECTS:system> 
                     $<TARGET_OBJECTS:common>
                     $<TARGET_OBJECTS:gpu>
-                )    
+                )
+    add_library(carts SHARED ${main_inc} ${main_src} 
+                    $<TARGET_OBJECTS:gas> 
+                    $<TARGET_OBJECTS:network> 
+                    $<TARGET_OBJECTS:introspection> 
+                    $<TARGET_OBJECTS:runtime> 
+                    $<TARGET_OBJECTS:system> 
+                    $<TARGET_OBJECTS:common>
+                    $<TARGET_OBJECTS:gpu>
+                )
 else()
     add_library(arts STATIC ${main_inc} ${main_src} 
                     $<TARGET_OBJECTS:gas> 
@@ -77,7 +86,17 @@ else()
                     $<TARGET_OBJECTS:system> 
                     $<TARGET_OBJECTS:common>
                 )
+    add_library(carts SHARED ${main_inc} ${main_src} 
+        $<TARGET_OBJECTS:gas> 
+        $<TARGET_OBJECTS:network> 
+        $<TARGET_OBJECTS:introspection> 
+        $<TARGET_OBJECTS:runtime> 
+        $<TARGET_OBJECTS:system> 
+        $<TARGET_OBJECTS:common>
+    )
+    message(${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB})
 endif()
 
 install(FILES ${main_inc} DESTINATION include)
 install(TARGETS arts ARCHIVE DESTINATION lib)
+# install(TARGETS carts ARCHIVE DESTINATION lib)

@@ -55,6 +55,7 @@ void initPerWorker(unsigned int nodeId, unsigned int workerId, int argc, char** 
 {
     if(!nodeId && !workerId)
     {
+        PRINTF("NodeID %u - WorkerID %u\n", nodeId, workerId);
         uint64_t args[3];
         artsGuid_t guid = artsEdtCreate(test, 0, 3, args, 0);
     }

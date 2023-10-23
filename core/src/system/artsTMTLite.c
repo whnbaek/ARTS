@@ -37,7 +37,7 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 
-#include <pthread.h>
+
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -45,6 +45,7 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #define __USE_GNU
+#include <pthread.h>
 #include <string.h>
 
 #include "artsGlobals.h"

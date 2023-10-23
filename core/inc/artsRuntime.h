@@ -67,6 +67,7 @@ void artsRuntimePrivateInit(struct threadMask * unit, struct artsConfig * config
 int artsRuntimeLoop();
 int artsRuntimeSchedulerLoopWait( volatile bool * waitForMe );
 bool artsDefaultSchedulerLoop();
+void artsRunEdt(void *edtPacket);
 struct artsEdt * artsFindEdt();
 
 bool artsRuntimeEdtLockDb (artsGuid_t dbGuid, struct artsDb * db, void * edtPacket, bool shared);
