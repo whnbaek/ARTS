@@ -78,15 +78,15 @@ if(CUDA_FOUND)
                     $<TARGET_OBJECTS:gpu>
                 )
 else()
-    add_library(arts STATIC ${main_inc} ${main_src} 
-                    $<TARGET_OBJECTS:gas> 
-                    $<TARGET_OBJECTS:network> 
-                    $<TARGET_OBJECTS:introspection> 
-                    $<TARGET_OBJECTS:runtime> 
-                    $<TARGET_OBJECTS:system> 
-                    $<TARGET_OBJECTS:common>
-                )
-    add_library(carts SHARED ${main_inc} ${main_src} 
+    # add_library(arts STATIC ${main_inc} ${main_src} 
+    #                 $<TARGET_OBJECTS:gas> 
+    #                 $<TARGET_OBJECTS:network> 
+    #                 $<TARGET_OBJECTS:introspection> 
+    #                 $<TARGET_OBJECTS:runtime> 
+    #                 $<TARGET_OBJECTS:system> 
+    #                 $<TARGET_OBJECTS:common>
+    #             )
+    add_library(arts SHARED ${main_inc} ${main_src} 
         $<TARGET_OBJECTS:gas> 
         $<TARGET_OBJECTS:network> 
         $<TARGET_OBJECTS:introspection> 
@@ -94,7 +94,7 @@ else()
         $<TARGET_OBJECTS:system> 
         $<TARGET_OBJECTS:common>
     )
-    message(${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB})
+    message("PATHS INSTALLED: " ${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB})
 endif()
 
 install(FILES ${main_inc} DESTINATION include)

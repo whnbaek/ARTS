@@ -421,6 +421,7 @@ void artsSignalEdt(artsGuid_t edtGuid, uint32_t slot, artsGuid_t dataGuid)
 
 void artsSignalEdtValue(artsGuid_t edtGuid, uint32_t slot, uint64_t value)
 {
+    PRINTF("Signal Value: %u to EDTGuid %u in slot %u\n", value, edtGuid, slot);
     internalSignalEdt(edtGuid, slot, value, ARTS_SINGLE_VALUE, NULL, 0);
 }
 

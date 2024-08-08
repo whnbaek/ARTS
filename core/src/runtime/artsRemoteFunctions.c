@@ -340,7 +340,7 @@ void artsRemoteHandleEventMove(void * ptr)
 
 void artsRemoteSignalEdt(artsGuid_t edt, artsGuid_t db, uint32_t slot, artsType_t mode)
 {
-    DPRINTF("Remote Signal %ld %ld %d %d\n",edt,db,slot, artsGuidGetRank(edt));
+    PRINTF("Remote Signal %ld %ld %d %d\n",edt,db,slot, artsGuidGetRank(edt));
     struct artsRemoteEdtSignalPacket packet;
     
     unsigned int rank = artsGuidGetRank(edt); 
