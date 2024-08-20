@@ -412,7 +412,12 @@ void artsRunEdt(void *edtPacket)
 
     artsSetThreadLocalEdtInfo(edt);
     ARTSCOUNTERTIMERSTART(edtCounter);
-
+    /// DEBUG DepV
+    PRINTF("Running EDT with GUID: %lu\n", edt->currentEdt);
+    for(int i=0; i<depc; i++)
+    {
+        PRINTF("DepV %d %lu %d\n", i, depv[i].guid, *((int *)(depv[i].ptr)));
+    }
     func(paramc, paramv, depc, depv);
 
     ARTSCOUNTERTIMERENDINCREMENT(edtCounter);

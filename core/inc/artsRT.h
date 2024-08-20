@@ -62,8 +62,11 @@ extern "C" {
 typedef uint8_t bool;
 #endif /* __cplusplus */  
     
-typedef intptr_t artsGuid_t; /**< GUID type */    
+typedef intptr_t artsGuid_t; /**< GUID type */
 #define NULL_GUID ((artsGuid_t)0x0)
+
+/// Pointer type
+typedef uintptr_t artsPtr_t;
 
 //This is the ticker for context switching
 typedef uint64_t artsTicket_t;

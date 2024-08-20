@@ -239,6 +239,7 @@ void artsAddLocalEventCallback(artsGuid_t source, eventCallback_t callback);
 //are accessed.  DBs are a fixed size and are accessed via signaling an EDT with a DBs guid.  When the EDT runs, it will have access to the guid, access mode, and raw data via artsEdtDep_t.
 //This creates a DB of size bytes and type mode, stores the pointer to the data in addr, and returns a new guid for the created DB.  The DB is created local to the calling node.
 artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode);
+artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode);
 
 //Creates a DB with a fixed guid of size bytes if the guid is local.  The type and route is already fixed by the provided guid, and the pointer to the raw data is returned.
 void * artsDbCreateWithGuid(artsGuid_t guid, uint64_t size);

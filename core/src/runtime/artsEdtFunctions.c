@@ -384,7 +384,7 @@ void internalSignalEdt(artsGuid_t edtPacket, uint32_t slot, artsGuid_t dataGuid,
                     edtDep[slot].ptr = ptr;
                 }
                 unsigned int res = artsAtomicSub(&edt->depcNeeded, 1U);
-                DPRINTF("SIG: %lu %lu %u %p %d res: %u %s\n", edtPacket, dataGuid, slot, ptr, mode, res, getTypeName((slot < edt->depc) ? edtDep[slot].mode : ARTS_NULL));
+                PRINTF("SIGNAL: %lu %lu %u %p %d\n", edt->currentEdt, dataGuid, slot, ptr, mode);
                 if(res == 0)
                     artsHandleReadyEdt(edt);
             }
@@ -416,6 +416,7 @@ void artsSignalEdt(artsGuid_t edtGuid, uint32_t slot, artsGuid_t dataGuid)
     {
         acqGuid = artsGuidCast(dataGuid, ARTS_DB_READ);
     }
+    PRINTF("Signal DBGuid: %u to EDTGuid %u in slot %u\n", dataGuid, edtGuid, slot);
     internalSignalEdt(edtGuid, slot, acqGuid, mode, NULL, 0);
 }
 
