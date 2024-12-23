@@ -294,8 +294,10 @@ bool checkEpoch(artsEpoch_t *epoch, unsigned int totalActive,
       DPRINTF("%lu epoch done!!!!!!!\n", epoch->guid);
       if (epoch->waitPtr)
         *epoch->waitPtr = 0;
-      if (epoch->ticket)
+      if (epoch->ticket) {
         artsSignalContext(epoch->ticket);
+        DPRINTF("%lu Signaling context %u\n", epoch->guid, epoch->ticket);
+      }
       if (epoch->terminationExitGuid) {
         DPRINTF(
             "%lu Calling finalization continuation provided by the user %u\n",

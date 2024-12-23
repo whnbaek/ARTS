@@ -221,18 +221,20 @@ bool artsEdtCreateInternal(struct artsEdt *edt, artsType_t mode,
                            (unsigned int)edt->header.size,
                            ARTS_REMOTE_EDT_MOVE_MSG, artsFree);
     else {
-      incOustandingEdts(1); // This is for debugging purposes...
-      if (createdGuid)      // this is a brand new edt
-      {
+      // This is for debugging purposes...
+      incOustandingEdts(1);
+      // this is a brand new edt
+      if (createdGuid) {
         artsRouteTableAddItem(edt, *guid, artsGlobalRankId, false);
         if (edt->depcNeeded == 0)
           artsHandleReadyEdt((void *)edt);
-      } else // we are racing to add an edt
-      {
+      }
+      // we are racing to add an edt
+      else {
         artsRouteTableAddItemRace(edt, *guid, artsGlobalRankId, false);
         if (edt->depcNeeded) {
-          artsRouteTableFireOO(
-              *guid, artsOutOfOrderHandler); // Check the OO callback for EDT
+          // Check the OO callback for EDT
+          artsRouteTableFireOO(*guid, artsOutOfOrderHandler);
         } else
           artsHandleReadyEdt((void *)edt);
       }
@@ -297,25 +299,6 @@ artsGuid_t artsEdtCreate(artsEdt_t funcPtr, unsigned int route, uint32_t paramc,
                          uint64_t *paramv, uint32_t depc) {
   return artsEdtCreateDep(funcPtr, route, paramc, paramv, depc, true);
 }
-
-// void artsEdtParallel(artsEdt_t parallelFunc, artsEdt_t parallelDoneFunc,
-//                      unsigned int route, uint32_t paramc, uint64_t *paramv,
-//                      uint32_t depc) {
-//   // Create a finish EDT to end the epoch
-//   artsGuid_t finishEdtParallelGuid =
-//       artsEdtCreate((artsEdt_t)parallelDoneFunc, route, 0, NULL, 1);
-//   artsGuid_t epochGuid = artsInitializeAndStartEpoch(finishEdtParallelGuid, 0);
-
-//   // Create parallel EDT
-//   unsigned int workers = artsGetTotalWorkers();
-//   for (unsigned int i = 0; i < workers; i++) {
-//     artsGuid_t parallelEdtGuid = artsEdtCreateWithEpoch(
-//         (artsEdt_t)parallelFunc, i, paramc, paramv, depc, epochGuid);
-//     artsSignalEdt(parallelEdtGuid, 0, NULL_GUID);
-//   }
-
-//   artsWaitOnHandle(epochGuid);
-// }
 
 artsGuid_t artsEdtCreateWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
                                  uint32_t paramc, uint64_t *paramv,

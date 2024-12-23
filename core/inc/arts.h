@@ -484,6 +484,9 @@ void artsForEachInArrayDbAtData(artsArrayDb_t *array, unsigned int stride,
 void artsGatherArrayDb(artsArrayDb_t *array, artsEdt_t funcPtr,
                        unsigned int route, uint32_t paramc, uint64_t *paramv,
                        uint64_t depc);
+void artsGatherArrayDbEpoch(artsArrayDb_t *array, artsEdt_t funcPtr,
+                            unsigned int route, uint32_t paramc,
+                            uint64_t *paramv, uint64_t depc, artsGuid_t epochGuid);
 void artsGatherArrayDbInEdt(artsArrayDb_t *array, artsGuid_t toEdtGuid,
                             uint64_t slotOffset);
 

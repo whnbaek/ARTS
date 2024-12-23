@@ -217,7 +217,6 @@ void *artsDbCreateWithGuidAndData(artsGuid_t guid, void *data, uint64_t size) {
     unsigned int dbSize = size + sizeof(struct artsDb);
 
     ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-    //        ptr = artsMalloc(dbSize);
     ptr = artsDbMalloc(mode, dbSize);
     ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
 
