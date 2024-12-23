@@ -159,12 +159,8 @@ unsigned int getRankFromIndex(artsArrayDb_t *array, unsigned int index) {
 
 void artsSignalArrayDb(artsArrayDb_t *array, artsGuid_t edtGuid,
                        unsigned int slot) {
-  unsigned int size = artsGetSizeArrayDb(array);
-  for (unsigned int i = 0; i < size; i++) {
-    unsigned int rank = getRankFromIndex(array, i);
-    unsigned int offset = getOffsetFromIndex(array, i);
-    artsSignalEdt(edtGuid, rank, slot, offset, array->elementSize);
-  }
+  artsGuid_t arrayGuid = getArrayDbGuid(array);
+  artsSignalEdt(edtGuid, slot, arrayGuid);
 }
 
 void artsGetFromArrayDb(artsGuid_t edtGuid, unsigned int slot,
