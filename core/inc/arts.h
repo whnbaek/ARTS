@@ -453,6 +453,9 @@ artsArrayDb_t *artsNewLocalArrayDbWithGuid(artsGuid_t guid,
                                            unsigned int numElements,
                                            void *data);
 
+void artsSignalArrayDb(artsArrayDb_t *array, artsGuid_t edtGuid,
+                       unsigned int slot);
+
 // Gets an element from an array DB at a specific index.  The results is
 // placed in slot for edtGuid using artsSignalEdtPtr.
 void artsGetFromArrayDb(artsGuid_t edtGuid, unsigned int slot,
