@@ -127,6 +127,7 @@ artsGuid_t artsDbCreateRemote(unsigned int route, uint64_t size,
   artsRemoteMemoryMove(route, guid, ptr, sizeof(struct artsDb),
                        ARTS_REMOTE_DB_SEND_MSG, artsDbFree);
   ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
+  return guid;
 }
 
 // Creates a local DB only
@@ -138,7 +139,6 @@ artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode) {
   ARTSSETMEMSHOTTYPE(artsDbMemorySize);
   //    void * ptr = artsMalloc(dbSize);
   void *ptr = artsDbMalloc(mode, dbSize);
-  PRINTF("DB Create 1 %p / %p / %p\n", addr, *addr, ptr);
   ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
   if (ptr) {
     guid = artsGuidCreateForRank(artsGlobalRankId, mode);
@@ -146,7 +146,6 @@ artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode) {
     // change false to true to force a manual DB delete
     artsRouteTableAddItem(ptr, guid, artsGlobalRankId, false);
     *addr = (void *)((struct artsDb *)ptr + 1);
-    PRINTF("DB Create 2 %p / %p / %p\n", addr, *addr, ptr);
   }
   ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
   return guid;
@@ -171,15 +170,28 @@ artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode) {
   return guid;
 }
 
-artsDataBlock *artsDbCreateArray(uint64_t size, artsType_t mode,
-                              unsigned int numElements) {
-  artsDataBlock *dbArray = artsMalloc(sizeof(artsDataBlock) * numElements);
-  if (dbArray) {
-    for (unsigned int i = 0; i < numElements; i++) {
-      dbArray[i].guid = artsDbCreatePtr(dbArray[i].ptr, size, mode);
-    }
+void artsDbCreateArray(artsDataBlock *dbArray, uint64_t size, artsType_t mode,
+                       unsigned int numElements, void *data) {
+  for (unsigned int i = 0; i < numElements; i++) {
+    dbArray[i].guid = artsGuidCreateForRank(artsGlobalRankId, mode);
+    dbArray[i].ptr = artsDbCreateWithGuidAndData(dbArray[i].guid,
+                                                 (char *)data + i * size, size);
   }
-  return dbArray;
+}
+
+void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
+                               artsEdtDep_t *deps, unsigned int initialSlot) {
+  for (unsigned int i = 0; i < numElements; i++) {
+    dbArray[i].guid = deps[initialSlot + i].guid;
+    dbArray[i].ptr = deps[initialSlot + i].ptr;
+  }
+}
+
+void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
+                   unsigned int slot, unsigned int numElements) {
+  for (unsigned int i = 0; i < numElements; i++) {
+    artsSignalEdt(dbArray[i].guid, edtGuid, slot + i);
+  }
 }
 
 // Guid must be for a local DB only
@@ -592,17 +604,17 @@ void internalGetFromDb(artsGuid_t edtGuid, artsGuid_t dbGuid, unsigned int slot,
       void *ptr = artsMalloc(size);
       memcpy(ptr, data, size);
       PRINTF("GETTING: %u From: %p\n", *(unsigned int *)ptr, data);
-      if(edtGuid != NULL_GUID)
+      if (edtGuid != NULL_GUID)
         artsSignalEdtPtr(edtGuid, slot, ptr, size);
       artsUpdatePerformanceMetric(artsGetBW, artsThread, size, false);
     } else {
-      assert(edtGuid != NULL_GUID &&  "DB not found and no EDT to signal");
+      assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
       PRINTF("GETTING OO: %u From: %p\n", 0, NULL);
       artsOutOfOrderGetFromDb(edtGuid, dbGuid, slot, offset, size);
     }
   } else {
     DPRINTF("Sending to %u\n", rank);
-    assert(edtGuid != NULL_GUID &&  "DB not found and no EDT to signal");
+    assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
     artsRemoteGetFromDb(edtGuid, dbGuid, slot, offset, size, rank);
   }
 }

@@ -312,6 +312,12 @@ void artsAddLocalEventCallback(artsGuid_t source, eventCallback_t callback);
 // the calling node.
 artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode);
 artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode);
+void artsDbCreateArray(artsDataBlock *dbArray, uint64_t size, artsType_t mode,
+                       unsigned int numElements, void *data);
+void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
+                               artsEdtDep_t *deps, unsigned int initialSlot);
+void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid, unsigned int slot,
+                   unsigned int numElements);
 
 // Creates a DB with a fixed guid of size bytes if the guid is local.  The type
 // and route is already fixed by the provided guid, and the pointer to the raw
@@ -486,7 +492,8 @@ void artsGatherArrayDb(artsArrayDb_t *array, artsEdt_t funcPtr,
                        uint64_t depc);
 void artsGatherArrayDbEpoch(artsArrayDb_t *array, artsEdt_t funcPtr,
                             unsigned int route, uint32_t paramc,
-                            uint64_t *paramv, uint64_t depc, artsGuid_t epochGuid);
+                            uint64_t *paramv, uint64_t depc,
+                            artsGuid_t epochGuid);
 void artsGatherArrayDbInEdt(artsArrayDb_t *array, artsGuid_t toEdtGuid,
                             uint64_t slotOffset);
 
@@ -544,7 +551,6 @@ uint64_t artsThreadSafeRandom();
 // are freed if the free flag is set.
 void artsRemoteSend(unsigned int rank, sendHandler_t funPtr, void *args,
                     unsigned int size, bool free);
-
 #ifdef __cplusplus
 }
 #endif

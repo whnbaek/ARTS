@@ -127,7 +127,8 @@ artsArrayDb_t *artsNewLocalArrayDbWithGuid(artsGuid_t guid,
   block->elementSize = elementSize;
   block->elementsPerBlock = elementsPerBlock;
   block->numBlocks = numBlocks;
-  memcpy((char*) block + sizeof(artsArrayDb_t), data, (elementSize * elementsPerBlock));
+  memcpy((char *)block + sizeof(artsArrayDb_t), data,
+         (elementSize * elementsPerBlock));
 
   artsDbCreateWithGuidAndData(guid, block, allocSize);
   return block;
@@ -218,13 +219,14 @@ void artsGatherArrayDb(artsArrayDb_t *array, artsEdt_t funcPtr,
 
 void artsGatherArrayDbEpoch(artsArrayDb_t *array, artsEdt_t funcPtr,
                             unsigned int route, uint32_t paramc,
-                            uint64_t *paramv, uint64_t depc, artsGuid_t epochGuid) {
+                            uint64_t *paramv, uint64_t depc,
+                            artsGuid_t epochGuid) {
   unsigned int offset = getOffsetFromIndex(array, 0);
   unsigned int size = array->elementSize * array->elementsPerBlock;
   artsGuid_t arrayGuid = getArrayDbGuid(array);
 
-  artsGuid_t guid =
-      artsEdtCreateWithEpoch(funcPtr, route, paramc, paramv, array->numBlocks + depc, epochGuid);
+  artsGuid_t guid = artsEdtCreateWithEpoch(funcPtr, route, paramc, paramv,
+                                           array->numBlocks + depc, epochGuid);
   for (unsigned int i = 0; i < array->numBlocks; i++) {
     artsGetFromDbAt(guid, arrayGuid, i, offset, size, i);
   }
