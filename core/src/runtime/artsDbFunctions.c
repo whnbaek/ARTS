@@ -188,9 +188,9 @@ void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
 }
 
 void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
-                   unsigned int slot, unsigned int numElements) {
+                   unsigned int initialSlot, unsigned int numElements) {
   for (unsigned int i = 0; i < numElements; i++) {
-    artsSignalEdt(dbArray[i].guid, edtGuid, slot + i);
+    artsSignalEdt(edtGuid, initialSlot + i, dbArray[i].guid);
   }
 }
 
@@ -301,7 +301,6 @@ void artsDbDestroy(artsGuid_t guid) {
   if (dbRes != NULL) {
     artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
     artsDbFree(dbRes);
-    //        artsFree(dbRes);
     artsRouteTableRemoveItem(guid);
   } else
     artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
@@ -370,14 +369,14 @@ void artsDbDestroySafe(artsGuid_t guid, bool remote) {
 
 /**********************DB MEMORY MODEL*************************************/
 
-// Side Effects:/ edt depcNeeded will be incremented, ptr will be updated,
+// Side Effects: edt depcNeeded will be incremented, ptr will be updated,
 //   and launches out of order handleReadyEdt
 // Returns false on out of order and true otherwise
 void acquireDbs(struct artsEdt *edt) {
   artsEdtDep_t *depv = artsGetDepv(edt);
   edt->depcNeeded = edt->depc + 1;
   for (int i = 0; i < edt->depc; i++) {
-    PRINTF("MODE: %s -> %p\n", getTypeName(depv[i].mode), depv[i].ptr);
+    // PRINTF("MODE: %s -> %p\n", getTypeName(depv[i].mode), depv[i].ptr);
     if (depv[i].guid && depv[i].ptr == NULL) {
       struct artsDb *dbFound = NULL;
       int owner = artsGuidGetRank(depv[i].guid);
@@ -424,18 +423,19 @@ void acquireDbs(struct artsEdt *edt) {
         break;
       }
       case ARTS_DB_LC_SYNC: {
-        if (owner == artsGlobalRankId) // Owner Rank
-        {
+        // Owner Rank
+        if (owner == artsGlobalRankId) {
           int validRank = -1;
           struct artsDb *dbTemp =
               artsRouteTableLookupDb(depv[i].guid, &validRank, false);
-          if (dbTemp) // We have found an entry
-          {
+          // We have found an entry
+          if (dbTemp) {
             DPRINTF("MODE: %s -> %p\n", getTypeName(depv[i].mode), dbTemp);
             dbFound = dbTemp;
             artsAtomicSub(&edt->depcNeeded, 1U);
-          } else // The Db hasn't been created yet
-          {
+          }
+          // The Db hasn't been created yet
+          else {
             // TODO: Create an out-of-order sync
             DPRINTF("%lu out of order request for LC_SYNC not supported yet\n",
                     depv[i].guid);
@@ -450,24 +450,24 @@ void acquireDbs(struct artsEdt *edt) {
       case ARTS_DB_GPU_WRITE:
       case ARTS_DB_LC:
       case ARTS_DB_READ:
-      case ARTS_DB_WRITE:
-        if (owner == artsGlobalRankId) // Owner Rank
-        {
+      case ARTS_DB_WRITE: {
+        // Owner Rank
+        if (owner == artsGlobalRankId) {
           int validRank = -1;
           struct artsDb *dbTemp =
               artsRouteTableLookupDb(depv[i].guid, &validRank, true);
-          if (dbTemp) // We have found an entry
-          {
+          // We have found an entry
+          if (dbTemp) {
             if (artsAddDbDuplicate(dbTemp, artsGlobalRankId, edt, i,
                                    depv[i].mode)) {
               PRINTF("Adding duplicate %lu\n", depv[i].guid);
-              if (validRank ==
-                  artsGlobalRankId) // Owner rank and we have the valid copy
-              {
+              // Owner rank and we have the valid copy
+              if (validRank == artsGlobalRankId) {
                 dbFound = dbTemp;
                 artsAtomicSub(&edt->depcNeeded, 1U);
-              } else // Owner rank but someone else has valid copy
-              {
+              }
+              // Owner rank but someone else has valid copy
+              else {
                 if (depv[i].mode == ARTS_DB_READ ||
                     depv[i].mode == ARTS_DB_GPU_READ ||
                     depv[i].mode == ARTS_DB_GPU_WRITE ||
@@ -490,8 +490,9 @@ void acquireDbs(struct artsEdt *edt) {
             //                                PRINTF("############### %lu Queue
             //                                in frontier\n", depv[i].guid);
             //                            }
-          } else // The Db hasn't been created yet
-          {
+          }
+          // The Db hasn't been created yet
+          else {
             PRINTF("%lu out of order request slot %u\n", depv[i].guid, i);
             artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
@@ -514,7 +515,7 @@ void acquireDbs(struct artsEdt *edt) {
                                 true);
           }
         }
-        break;
+      } break;
 
       case ARTS_NULL:
       default:
@@ -524,8 +525,8 @@ void acquireDbs(struct artsEdt *edt) {
 
       if (dbFound) {
         depv[i].ptr = dbFound + 1;
-        PRINTF("Setting[%u]: %p %s - %d\n", i, depv[i].ptr,
-               getTypeName(depv[i].mode), *((int *)depv[i].ptr));
+        // PRINTF("Setting[%u]: %p %s - %d\n", i, depv[i].ptr,
+        //        getTypeName(depv[i].mode), *((int *)depv[i].ptr));
       }
       // Shouldn't there be an else return here...
     } else {
@@ -557,9 +558,10 @@ void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
 
 void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
   for (int i = 0; i < depc; i++) {
-    PRINTF("Releasing %lu\n", depv[i].guid);
+    PRINTF("Releasing %lu", depv[i].guid);
     unsigned int owner = artsGuidGetRank(depv[i].guid);
     if (depv[i].guid != NULL_GUID && depv[i].mode == ARTS_DB_WRITE) {
+      PRINTF(" - ARTS_DB_WRITE\n");
       // Signal we finished and progress frontier
       if (owner == artsGlobalRankId) {
         struct artsDb *db = ((struct artsDb *)depv[i].ptr - 1);
@@ -567,18 +569,24 @@ void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
       } else {
         artsRemoteUpdateDb(depv[i].guid, false);
       }
-      //            artsRouteTableReturnDb(depv[i].guid, false);
     } else if (depv[i].mode == ARTS_DB_ONCE_LOCAL ||
                depv[i].mode == ARTS_DB_ONCE) {
+      PRINTF(" - ARTS_DB_ONCE\n");
       artsRouteTableInvalidateItem(depv[i].guid);
     } else if (depv[i].mode == ARTS_PTR) {
+      PRINTF(" - ARTS_PTR\n");
       artsFree(depv[i].ptr);
     } else if (!gpu && depv[i].mode == ARTS_DB_LC) {
+      PRINTF(" - ARTS_DB_LC\n");
       struct artsDb *db = ((struct artsDb *)depv[i].ptr) - 1;
       artsReaderUnlock(&db->reader);
     } else {
       if (artsRouteTableReturnDb(depv[i].guid, depv[i].mode != ARTS_DB_PIN)) {
+        PRINTF(" - ARTS_DB_READ\n");
         DPRINTF("FREED A COPY!\n");
+      }
+      else {
+        PRINTF(" - is ARTS_DB_PIN: Skipping...\n");
       }
     }
   }

@@ -316,8 +316,8 @@ void artsDbCreateArray(artsDataBlock *dbArray, uint64_t size, artsType_t mode,
                        unsigned int numElements, void *data);
 void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
                                artsEdtDep_t *deps, unsigned int initialSlot);
-void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid, unsigned int slot,
-                   unsigned int numElements);
+void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
+                   unsigned int initialSlot, unsigned int numElements);
 
 // Creates a DB with a fixed guid of size bytes if the guid is local.  The type
 // and route is already fixed by the provided guid, and the pointer to the raw

@@ -418,9 +418,6 @@ void artsRunEdt(void *edtPacket) {
   ARTSCOUNTERTIMERSTART(edtCounter);
   /// DEBUG DepV
   PRINTF("Running EDT with GUID: %lu\n", edt->currentEdt);
-  // for (int i = 0; i < depc; i++) {
-  //   PRINTF("DepV %d %lu %d\n", i, depv[i].guid, *((int *)(depv[i].ptr)));
-  // }
   func(paramc, paramv, depc, depv);
 
   ARTSCOUNTERTIMERENDINCREMENT(edtCounter);
@@ -428,15 +425,16 @@ void artsRunEdt(void *edtPacket) {
 
   artsUnsetThreadLocalEdtInfo();
 
-  if (edt->outputBuffer != NULL_GUID) // This is for a synchronous path
+  // This is for a synchronous path
+  if (edt->outputBuffer != NULL_GUID)
     artsSetBuffer(edt->outputBuffer, artsCalloc(sizeof(unsigned int)),
                   sizeof(unsigned int));
 
-  /// 
   PRINTF("EDT %lu Finished\n", edt->currentEdt);
   releaseDbs(depc, depv, false);
   artsEdtDelete(edtPacket);
-  decOustandingEdts(1); // This is for debugging purposes
+  // This is for debugging purposes
+  decOustandingEdts(1);
 }
 
 inline struct artsEdt *artsRuntimeStealFromNetwork() {

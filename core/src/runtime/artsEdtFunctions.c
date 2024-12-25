@@ -370,8 +370,8 @@ void internalSignalEdt(artsGuid_t edtPacket, uint32_t slot, artsGuid_t dataGuid,
           edtDep[slot].ptr = ptr;
         }
         unsigned int res = artsAtomicSub(&edt->depcNeeded, 1U);
-        PRINTF("SIGNAL: %lu %lu %u %p %d\n", edt->currentEdt, dataGuid, slot,
-               ptr, mode);
+        // PRINTF("SIGNAL: %lu %lu %u %p %d\n", edt->currentEdt, dataGuid, slot,
+        // ptr, mode);
         if (res == 0)
           artsHandleReadyEdt(edt);
       } else {

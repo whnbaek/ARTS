@@ -635,14 +635,15 @@ bool internalRouteTableReturnDb(artsRouteTable_t *routeTable, artsGuid_t key,
     // Only mark it for deletion if it is the last one
     // Why make it unusable to other if there is still other
     // tasks that may benifit
-    if (markToDelete && doDelete) // True True
-    {
+    // True True
+    if (markToDelete && doDelete) {
       // This should work if there is only one outstanding left... me.  The
       // decItem needs to sub 1 to delete
       tryMarkDelete(location, 1);
       return decItem(routeTable, location);
-    } else if (markToDelete && !doDelete) // True False
-    {
+    }
+    // True False
+    else if (markToDelete && !doDelete) {
       decItem(routeTable, location);
       tryMarkDelete(location, 0);
       return false;
