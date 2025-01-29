@@ -187,6 +187,16 @@ void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
   }
 }
 
+void artsDbCreatePtrAndGuidArrayFromDeps(void **ptrArray, artsGuid_t *guidArray,
+                                         unsigned int numElements,
+                                         artsEdtDep_t *deps,
+                                         unsigned int initialSlot) {
+  for (unsigned int i = 0; i < numElements; i++) {
+    guidArray[i] = deps[initialSlot + i].guid;
+    ptrArray[i] = deps[initialSlot + i].ptr;
+  }
+}
+
 void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
                    unsigned int initialSlot, unsigned int numElements) {
   for (unsigned int i = 0; i < numElements; i++) {
@@ -584,8 +594,7 @@ void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
       if (artsRouteTableReturnDb(depv[i].guid, depv[i].mode != ARTS_DB_PIN)) {
         PRINTF(" - ARTS_DB_READ\n");
         DPRINTF("FREED A COPY!\n");
-      }
-      else {
+      } else {
         PRINTF(" - is ARTS_DB_PIN: Skipping...\n");
       }
     }

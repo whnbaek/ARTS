@@ -316,6 +316,11 @@ void artsDbCreateArray(artsDataBlock *dbArray, uint64_t size, artsType_t mode,
                        unsigned int numElements, void *data);
 void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
                                artsEdtDep_t *deps, unsigned int initialSlot);
+void artsDbCreatePtrAndGuidArrayFromDeps(void **ptrArray,
+                                         artsGuid_t *guidArray,
+                                         unsigned int numElements,
+                                         artsEdtDep_t *deps,
+                                         unsigned int initialSlot);
 void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
                    unsigned int initialSlot, unsigned int numElements);
 
@@ -566,4 +571,3 @@ void artsRemoteSend(unsigned int rank, sendHandler_t funPtr, void *args,
 }
 #endif
 #endif
-
