@@ -130,7 +130,7 @@ void artsEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,
                                    slot, true);
     return;
   }
-
+  PRINTF("Signal Event:%u, Data:%u at %u\n", eventGuid, dataGuid, slot);
   struct artsEvent *event =
       (struct artsEvent *)artsRouteTableLookupItem(eventGuid);
   if (!event) {
@@ -262,6 +262,7 @@ struct artsDependent *artsDependentGet(struct artsDependentList *head,
 
 void artsAddDependence(artsGuid_t source, artsGuid_t destination,
                        uint32_t slot) {
+  PRINTF("Add Dependence from %u to %u at %u\n", source, destination, slot);
   artsType_t mode = artsGuidGetType(destination);
   struct artsHeader *sourceHeader = artsRouteTableLookupItem(source);
   if (sourceHeader == NULL) {

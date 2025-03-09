@@ -312,17 +312,6 @@ void artsAddLocalEventCallback(artsGuid_t source, eventCallback_t callback);
 // the calling node.
 artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode);
 artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode);
-void artsDbCreateArray(artsDataBlock *dbArray, uint64_t size, artsType_t mode,
-                       unsigned int numElements, void *data);
-void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
-                               artsEdtDep_t *deps, unsigned int initialSlot);
-void artsDbCreatePtrAndGuidArrayFromDeps(void **ptrArray,
-                                         artsGuid_t *guidArray,
-                                         unsigned int numElements,
-                                         artsEdtDep_t *deps,
-                                         unsigned int initialSlot);
-void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
-                   unsigned int initialSlot, unsigned int numElements);
 
 // Creates a DB with a fixed guid of size bytes if the guid is local.  The type
 // and route is already fixed by the provided guid, and the pointer to the raw
@@ -516,12 +505,6 @@ void artsAtomicCompareAndSwapInArrayDb(artsArrayDb_t *array, unsigned int index,
                                        artsGuid_t edtGuid, unsigned int slot);
 
 /*Util*************************************************************************/
-// Returns the guid of the input ArtsDatablock
-inline artsGuid_t artsGetGuidFromDataBlock(artsDataBlock db);
-
-/// Returns the pointer to the data in the ArtsDatablock
-inline void *artsGetPtrFromDataBlock(artsDataBlock db);
-
 /// Returns the guid of the input edtDep
 inline artsGuid_t artsGetGuidFromEdtDep(artsEdtDep_t dep);
 

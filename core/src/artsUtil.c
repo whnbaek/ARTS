@@ -64,12 +64,6 @@
 extern __thread struct artsEdt *currentEdt;
 extern unsigned int numNumaDomains;
 
-inline artsGuid_t artsGetGuidFromDataBlock(artsDataBlock db) {
-  return db.guid;
-}
-
-inline void *artsGetPtrFromDataBlock(artsDataBlock db) { return db.ptr; }
-
 inline artsGuid_t artsGetGuidFromEdtDep(artsEdtDep_t dep) { return dep.guid; }
 
 inline void *artsGetPtrFromEdtDep(artsEdtDep_t dep) { return dep.ptr; }

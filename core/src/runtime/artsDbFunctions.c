@@ -170,40 +170,6 @@ artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode) {
   return guid;
 }
 
-void artsDbCreateArray(artsDataBlock *dbArray, uint64_t size, artsType_t mode,
-                       unsigned int numElements, void *data) {
-  for (unsigned int i = 0; i < numElements; i++) {
-    dbArray[i].guid = artsGuidCreateForRank(artsGlobalRankId, mode);
-    dbArray[i].ptr = artsDbCreateWithGuidAndData(dbArray[i].guid,
-                                                 (char *)data + i * size, size);
-  }
-}
-
-void artsDbCreateArrayFromDeps(artsDataBlock *dbArray, unsigned int numElements,
-                               artsEdtDep_t *deps, unsigned int initialSlot) {
-  for (unsigned int i = 0; i < numElements; i++) {
-    dbArray[i].guid = deps[initialSlot + i].guid;
-    dbArray[i].ptr = deps[initialSlot + i].ptr;
-  }
-}
-
-void artsDbCreatePtrAndGuidArrayFromDeps(void **ptrArray, artsGuid_t *guidArray,
-                                         unsigned int numElements,
-                                         artsEdtDep_t *deps,
-                                         unsigned int initialSlot) {
-  for (unsigned int i = 0; i < numElements; i++) {
-    guidArray[i] = deps[initialSlot + i].guid;
-    ptrArray[i] = deps[initialSlot + i].ptr;
-  }
-}
-
-void artsSignalDbs(artsDataBlock *dbArray, artsGuid_t edtGuid,
-                   unsigned int initialSlot, unsigned int numElements) {
-  for (unsigned int i = 0; i < numElements; i++) {
-    artsSignalEdt(edtGuid, initialSlot + i, dbArray[i].guid);
-  }
-}
-
 // Guid must be for a local DB only
 void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
   ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
@@ -568,7 +534,7 @@ void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
 
 void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
   for (int i = 0; i < depc; i++) {
-    PRINTF("Releasing %lu", depv[i].guid);
+    PRINTF("Releasing %u", depv[i].guid);
     unsigned int owner = artsGuidGetRank(depv[i].guid);
     if (depv[i].guid != NULL_GUID && depv[i].mode == ARTS_DB_WRITE) {
       PRINTF(" - ARTS_DB_WRITE\n");

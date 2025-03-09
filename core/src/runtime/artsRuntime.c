@@ -417,7 +417,7 @@ void artsRunEdt(void *edtPacket) {
   artsSetThreadLocalEdtInfo(edt);
   ARTSCOUNTERTIMERSTART(edtCounter);
   /// DEBUG DepV
-  PRINTF("Running EDT with GUID: %lu\n", edt->currentEdt);
+  PRINTF("Running EDT with GUID: %u\n", edt->currentEdt);
   func(paramc, paramv, depc, depv);
 
   ARTSCOUNTERTIMERENDINCREMENT(edtCounter);
@@ -430,7 +430,7 @@ void artsRunEdt(void *edtPacket) {
     artsSetBuffer(edt->outputBuffer, artsCalloc(sizeof(unsigned int)),
                   sizeof(unsigned int));
 
-  PRINTF("EDT %lu Finished\n", edt->currentEdt);
+  PRINTF("EDT %u Finished\n", edt->currentEdt);
   releaseDbs(depc, depv, false);
   artsEdtDelete(edtPacket);
   // This is for debugging purposes

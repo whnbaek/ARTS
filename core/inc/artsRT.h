@@ -124,11 +124,6 @@ typedef struct {
   void *ptr;
 } artsEdtDep_t;
 
-typedef struct {
-  artsGuid_t guid;
-  void *ptr;
-} artsDataBlock;
-
 // Signature of an EDT
 // Also signature of an GPU task
 typedef void (*artsEdt_t)(uint32_t paramc, uint64_t *paramv, uint32_t depc,
