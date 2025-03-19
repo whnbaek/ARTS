@@ -138,7 +138,8 @@ typedef void (*sendHandler_t)(void *args);
 
 typedef enum {
   ARTS_EVENT_LATCH_DECR_SLOT = 0,
-  ARTS_EVENT_LATCH_INCR_SLOT = 1
+  ARTS_EVENT_LATCH_INCR_SLOT = 1,
+  ARTS_EVENT_UPDATE = 2 // Only for persistent events
 } artsLatchEventSlot_t;
 
 struct artsHeader {

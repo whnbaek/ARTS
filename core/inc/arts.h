@@ -300,6 +300,35 @@ void artsAddDependence(artsGuid_t source, artsGuid_t destination,
 // reaches 0.
 void artsAddLocalEventCallback(artsGuid_t source, eventCallback_t callback);
 
+/*Persistent Event*************************************************************/
+// An artsPersistentEvent represents a reusable synchronization point that can
+// fire multiple times. Unlike a one-time event, a persistent event remains
+// alive after being satisfied and can be triggered repeatedly.
+artsGuid_t artsPersistentEventCreate(unsigned int route,
+                                     unsigned int latchCount, artsGuid_t dataGuid);
+
+/// Satisfy the persistent event
+void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
+                                uint32_t action);
+
+// Increment the latch count of a persistent event. This is used to indicate
+// that a new dependency has been added to the event, allowing it to fire
+// again.
+void artsPersistentEventIncrementLatch(artsGuid_t eventGuid,
+                                       artsGuid_t dataGuid);
+
+// Decrement the latch count of a persistent event. This is used to indicate
+// that a dependency has been satisfied. If the latch count reaches zero,
+// the event will fire, signaling any dependent EDTs.
+void artsPersistentEventDecrementLatch(artsGuid_t eventGuid,
+                                       artsGuid_t dataGuid);
+
+// Adds a dependence from a source persistent event to a destination EDT slot.
+// If the source event latch count is zero, the destination EDT will be signaled
+// immediately.
+void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
+                                        artsGuid_t edtDest, uint32_t edtSlot);
+
 /*DB***************************************************************************/
 
 // A DataBlock (DB) is the main memory abstraction used in ARTS to share data

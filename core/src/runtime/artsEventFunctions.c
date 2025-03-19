@@ -37,6 +37,7 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 #include "artsEventFunctions.h"
+#include "arts.h"
 #include "artsAtomics.h"
 #include "artsCounter.h"
 #include "artsDebug.h"
@@ -45,6 +46,7 @@
 #include "artsGuid.h"
 #include "artsIntrospection.h"
 #include "artsOutOfOrder.h"
+#include "artsRT.h"
 #include "artsRemoteFunctions.h"
 #include "artsRouteTable.h"
 
@@ -52,7 +54,8 @@ extern __thread struct artsEdt *currentEdt;
 
 bool artsEventCreateInternal(artsGuid_t *guid, unsigned int route,
                              unsigned int dependentCount,
-                             unsigned int latchCount, bool destroyOnFire) {
+                             unsigned int latchCount, bool destroyOnFire,
+                             artsGuid_t eventData) {
   unsigned int eventSize =
       sizeof(struct artsEvent) + sizeof(struct artsDependent) * dependentCount;
   ARTSSETMEMSHOTTYPE(artsEventMemorySize);
@@ -67,7 +70,7 @@ bool artsEventCreateInternal(artsGuid_t *guid, unsigned int route,
     event->dependent.size = dependentCount;
     event->latchCount = latchCount;
     event->destroyOnFire = (destroyOnFire) ? dependentCount : -1;
-    event->data = NULL_GUID;
+    event->data = eventData;
 
     if (route == artsGlobalRankId) {
       if (*guid) {
@@ -90,7 +93,7 @@ artsGuid_t artsEventCreate(unsigned int route, unsigned int latchCount) {
   ARTSEDTCOUNTERTIMERSTART(eventCreateCounter);
   artsGuid_t guid = NULL_GUID;
   artsEventCreateInternal(&guid, route, INITIAL_DEPENDENT_SIZE, latchCount,
-                          false);
+                          false, NULL_GUID);
   ARTSEDTCOUNTERTIMERENDINCREMENT(eventCreateCounter);
   return guid;
 }
@@ -99,7 +102,7 @@ artsGuid_t artsEventCreateWithGuid(artsGuid_t guid, unsigned int latchCount) {
   ARTSEDTCOUNTERTIMERSTART(eventCreateCounter);
   unsigned int route = artsGuidGetRank(guid);
   bool ret = artsEventCreateInternal(&guid, route, INITIAL_DEPENDENT_SIZE,
-                                     latchCount, false);
+                                     latchCount, false, NULL_GUID);
   ARTSEDTCOUNTERTIMERENDINCREMENT(eventCreateCounter);
   return (ret) ? guid : NULL_GUID;
 }
@@ -373,4 +376,196 @@ bool artsIsEventFired(artsGuid_t event) {
   if (actualEvent)
     fired = actualEvent->fired;
   return fired;
+}
+
+artsGuid_t artsPersistentEventCreate(unsigned int route,
+                                     unsigned int latchCount,
+                                     artsGuid_t dataGuid) {
+  ARTSEDTCOUNTERTIMERSTART(eventCreateCounter);
+  artsGuid_t guid = NULL_GUID;
+  artsEventCreateInternal(&guid, route, INITIAL_DEPENDENT_SIZE, latchCount,
+                          false, dataGuid);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(eventCreateCounter);
+  return guid;
+}
+
+void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
+                                uint32_t action) {
+  ARTSEDTCOUNTERTIMERSTART(signalEventCounter);
+  if (currentEdt && currentEdt->invalidateCount > 0) {
+    artsOutOfOrderPersistentEventSatisfySlot(currentEdt->currentEdt, eventGuid,
+                                             dataGuid, action, true);
+    return;
+  }
+  struct artsEvent *event =
+      (struct artsEvent *)artsRouteTableLookupItem(eventGuid);
+  if (!event) {
+    unsigned int rank = artsGuidGetRank(eventGuid);
+    if (rank != artsGlobalRankId) {
+      artsRemotePersistentEventSatisfySlot(eventGuid, dataGuid, action);
+    } else {
+      artsOutOfOrderPersistentEventSatisfySlot(eventGuid, eventGuid, dataGuid,
+                                               action, false);
+    }
+  } else {
+
+    if (dataGuid != NULL_GUID) {
+      event->data = dataGuid;
+    } else {
+      PRINTF("Data:NULL_GUID, avoiding signaling\n");
+      artsDebugGenerateSegFault();
+    }
+
+    unsigned int res;
+    if (action == ARTS_EVENT_LATCH_INCR_SLOT) {
+      res = artsAtomicAdd(&event->latchCount, 1U);
+      PRINTF("Incrementing latch count for event %u: %d\n", eventGuid, res);
+    } else if (action == ARTS_EVENT_LATCH_DECR_SLOT) {
+      res = artsAtomicSub(&event->latchCount, 1U);
+      PRINTF("Decrementing latch count for event %u: %d\n", eventGuid, res);
+    } else if (action == ARTS_EVENT_UPDATE) {
+      res = artsAtomicFetchAdd(&event->latchCount, 0U);
+      PRINTF("Updating event %u: %d\n", eventGuid, res);
+    } else {
+      PRINTF("Bad latch slot %u\n", action);
+      artsDebugGenerateSegFault();
+    }
+
+    if (res == 0) {
+      PRINTF("Firing persistent event %u\n", eventGuid);
+      struct artsDependentList *dependentList = &event->dependent;
+      struct artsDependent *dependent = event->dependent.dependents;
+      int i, j;
+      unsigned int lastKnown = artsAtomicFetchAdd(&event->dependentCount, 0U);
+      event->pos = lastKnown + 1;
+      i = 0;
+      int totalSize = 0;
+      while (i < lastKnown) {
+        j = i - totalSize;
+        while (i < lastKnown && j < dependentList->size) {
+          while (!dependent[j].doneWriting)
+            ;
+          if (dependent[j].type == ARTS_EDT) {
+            if (event->data != NULL_GUID)
+              artsSignalEdt(dependent[j].addr, dependent[j].slot, event->data);
+            else
+              PRINTF("Event data is NULL_GUID for event %u\n", eventGuid);
+          } else if (dependent[j].type == ARTS_EVENT) {
+#ifdef COUNT
+            // THIS IS A TEMP FIX... problem is recursion...
+            artsCounterTimerEndIncrement(artsGetCounter(
+                (artsThreadInfo.currentEdtGuid) ? signalEventCounterOn
+                                                : signalEventCounter));
+            uint64_t start = artsCounterGetStartTime(artsGetCounter(
+                (artsThreadInfo.currentEdtGuid) ? signalEventCounterOn
+                                                : signalEventCounter));
+#endif
+            artsPersistentEventSatisfy(dependent[j].addr, event->data,
+                                       dependent[j].slot);
+#ifdef COUNT
+            // THIS IS A TEMP FIX... problem is recursion...
+            artsCounterSetEndTime(artsGetCounter((artsThreadInfo.currentEdtGuid)
+                                                     ? signalEventCounterOn
+                                                     : signalEventCounter),
+                                  start);
+#endif
+          } else if (dependent[j].type == ARTS_CALLBACK) {
+            artsEdtDep_t arg;
+            arg.guid = event->data;
+            arg.ptr = artsRouteTableLookupItem(event->data);
+            arg.mode = ARTS_NULL;
+            dependent[j].callback(arg);
+          }
+          j++;
+          i++;
+        }
+        totalSize += dependentList->size;
+        while (i < lastKnown && dependentList->next == NULL)
+          ;
+        dependentList = dependentList->next;
+        dependent = dependentList->dependents;
+      }
+      if (!event->destroyOnFire) {
+        artsEventFree(event);
+        artsRouteTableRemoveItem(eventGuid);
+      }
+    }
+  }
+  artsUpdatePerformanceMetric(artsEventSignalThroughput, artsThread, 1, false);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(signalEventCounter);
+}
+
+void artsPersistentEventIncrementLatch(artsGuid_t eventGuid,
+                                       artsGuid_t dataGuid) {
+  artsPersistentEventSatisfy(eventGuid, dataGuid, ARTS_EVENT_LATCH_INCR_SLOT);
+}
+
+void artsPersistentEventDecrementLatch(artsGuid_t eventGuid,
+                                       artsGuid_t dataGuid) {
+  artsPersistentEventSatisfy(eventGuid, dataGuid, ARTS_EVENT_LATCH_DECR_SLOT);
+}
+
+void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
+                                        artsGuid_t edtDest, uint32_t edtSlot) {
+  /// Check that the eventSource is a persistent event
+  if (artsGuidGetType(eventSource) != ARTS_EVENT) {
+    PRINTF("Event source %u is not a persistent event\n", eventSource);
+    artsDebugGenerateSegFault();
+    return;
+  }
+  artsType_t mode = artsGuidGetType(edtDest);
+  struct artsHeader *sourceHeader = artsRouteTableLookupItem(eventSource);
+  if (sourceHeader == NULL) {
+    unsigned int rank = artsGuidGetRank(eventSource);
+    if (rank != artsGlobalRankId) {
+      artsRemoteAddDependenceToPersistenEvent(eventSource, edtDest, edtSlot,
+                                              mode, rank);
+    } else {
+      artsOutOfOrderAddDependenceToPersistentEvent(eventSource, edtDest,
+                                                   edtSlot, mode, eventSource);
+    }
+    return;
+  }
+
+  PRINTF("Add Dependence from persistent event %u to %u at %u\n", eventSource,
+         edtDest, edtSlot);
+  struct artsEvent *event = (struct artsEvent *)sourceHeader;
+  if (mode == ARTS_EDT) {
+    PRINTF("Adding dependence to EDT\n");
+    struct artsDependentList *dependentList = &event->dependent;
+    struct artsDependent *dependent;
+    unsigned int position = artsAtomicFetchAdd(&event->dependentCount, 1U);
+    dependent = artsDependentGet(dependentList, position);
+    dependent->type = ARTS_EDT;
+    dependent->addr = edtDest;
+    dependent->slot = edtSlot;
+    COMPILER_DO_NOT_REORDER_WRITES_BETWEEN_THIS_POINT();
+    dependent->doneWriting = true;
+
+    unsigned int destroyEvent = (event->destroyOnFire != -1)
+                                    ? artsAtomicSub(&event->destroyOnFire, 1U)
+                                    : 1;
+    if (artsAtomicFetchAdd(&event->latchCount, 0U) == 0) {
+      artsPersistentEventSatisfy(eventSource, event->data, ARTS_EVENT_UPDATE);
+    }
+  } else if (mode == ARTS_EVENT) {
+    PRINTF("Adding dependence to persistent event\n");
+    struct artsDependentList *dependentList = &event->dependent;
+    struct artsDependent *dependent;
+    unsigned int position = artsAtomicFetchAdd(&event->dependentCount, 1U);
+    dependent = artsDependentGet(dependentList, position);
+    dependent->type = ARTS_EVENT;
+    dependent->addr = edtDest;
+    dependent->slot = edtSlot;
+    COMPILER_DO_NOT_REORDER_WRITES_BETWEEN_THIS_POINT();
+    dependent->doneWriting = true;
+
+    unsigned int destroyEvent = (event->destroyOnFire != -1)
+                                    ? artsAtomicSub(&event->destroyOnFire, 1U)
+                                    : 1;
+    if (artsAtomicFetchAdd(&event->latchCount, 0U) == 0) {
+      artsPersistentEventSatisfy(eventSource, event->data, ARTS_EVENT_UPDATE);
+    }
+  }
+  return;
 }

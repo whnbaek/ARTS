@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,* 
+** implied, or assumes any legal liability or responsibility for the accuracy,*
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -41,29 +41,29 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
+
 #include "arts.h"
 #define OOPERELEMENT 4
 
-struct artsOutOfOrderElement
-{
-    volatile struct artsOutOfOrderElement * next;
-    volatile void * array[OOPERELEMENT];
+struct artsOutOfOrderElement {
+  volatile struct artsOutOfOrderElement *next;
+  volatile void *array[OOPERELEMENT];
 };
 
-struct artsOutOfOrderList
-{
-    volatile unsigned int readerLock;
-    volatile unsigned int writerLock;
-    volatile unsigned int count;
-    bool isFired;
-    struct artsOutOfOrderElement head;
+struct artsOutOfOrderList {
+  volatile unsigned int readerLock;
+  volatile unsigned int writerLock;
+  volatile unsigned int count;
+  bool isFired;
+  struct artsOutOfOrderElement head;
 };
 
-bool artsOutOfOrderListAddItem(struct artsOutOfOrderList * addToMe, void * item);
-void artsOutOfOrderListFireCallback(struct artsOutOfOrderList* fireMe, void * localGuidAddress,  void (* callback)(void *, void *));
-void artsOutOfOrderListReset(struct artsOutOfOrderList* fireMe);
-void artsOutOfOrderListDelete(struct artsOutOfOrderList* fireMe);
+bool artsOutOfOrderListAddItem(struct artsOutOfOrderList *addToMe, void *item);
+void artsOutOfOrderListFireCallback(struct artsOutOfOrderList *fireMe,
+                                    void *localGuidAddress,
+                                    void (*callback)(void *, void *));
+void artsOutOfOrderListReset(struct artsOutOfOrderList *fireMe);
+void artsOutOfOrderListDelete(struct artsOutOfOrderList *fireMe);
 #ifdef __cplusplus
 }
 #endif

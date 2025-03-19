@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,* 
+** implied, or assumes any legal liability or responsibility for the accuracy,*
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -43,18 +43,14 @@ extern "C" {
 #endif
 #include "arts.h"
 #define INITIAL_DEPENDENT_SIZE 4
-    
-bool artsEventCreateInternal( artsGuid_t * guid, 
-                              unsigned int route, 
-                              unsigned int dependentCount, 
-                              unsigned int latchCount, 
-                              bool destroyOnFire );
 
-
+bool artsEventCreateInternal(artsGuid_t *guid, unsigned int route,
+                             unsigned int dependentCount,
+                             unsigned int latchCount, bool destroyOnFire,
+                             artsGuid_t eventData);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* ARTSEVENTFUNCTIONS_H */
-

@@ -695,6 +695,7 @@ bool artsRouteTableAddOO(artsGuid_t key, void *data, bool inc) {
     if (inc)
       incItem(item, 1, item->key, artsGetRouteTable(key));
     bool res = artsOutOfOrderListAddItem(&item->ooList, data);
+    
     return res;
   }
   if (inc)

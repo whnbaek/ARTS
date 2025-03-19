@@ -82,6 +82,22 @@ void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
   artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
 }
 
+void artsRemoteAddDependenceToPersistenEvent(artsGuid_t source,
+                                             artsGuid_t destination,
+                                             uint32_t slot, artsType_t mode,
+                                             unsigned int rank) {
+  DPRINTF("Remote Add dependence to persistent event sent %d\n", rank);
+  struct artsRemoteAddDependencePacket packet;
+  packet.source = source;
+  packet.destination = destination;
+  packet.slot = slot;
+  packet.mode = mode;
+  packet.destRoute = artsGuidGetRank(destination);
+  artsFillPacketHeader(&packet.header, sizeof(packet),
+                       ARTS_REMOTE_ADD_DEPENDENCE_TO_PERSISTENT_EVENT_MSG);
+  artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
+}
+
 void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank) {
   DPRINTF("Here Update Table %ld %u\n", guid, rank);
   unsigned int owner = artsGuidGetRank(guid);
@@ -368,6 +384,20 @@ void artsRemoteEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,
   packet.dbRoute = artsGuidGetRank(dataGuid);
   artsFillPacketHeader(&packet.header, sizeof(packet),
                        ARTS_REMOTE_EVENT_SATISFY_SLOT_MSG);
+  artsRemoteSendRequestAsync(artsGuidGetRank(eventGuid), (char *)&packet,
+                             sizeof(packet));
+}
+
+void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid,
+                                          artsGuid_t dataGuid, uint32_t slot) {
+  DPRINTF("Remote Satisfy Slot\n");
+  struct artsRemoteEventSatisfySlotPacket packet;
+  packet.event = eventGuid;
+  packet.db = dataGuid;
+  packet.slot = slot;
+  packet.dbRoute = artsGuidGetRank(dataGuid);
+  artsFillPacketHeader(&packet.header, sizeof(packet),
+                       ARTS_REMOTE_PERSISTENT_EVENT_SATISFY_SLOT_MSG);
   artsRemoteSendRequestAsync(artsGuidGetRank(eventGuid), (char *)&packet,
                              sizeof(packet));
 }

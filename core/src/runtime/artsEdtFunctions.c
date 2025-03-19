@@ -239,6 +239,15 @@ bool artsEdtCreateInternal(struct artsEdt *edt, artsType_t mode,
           artsHandleReadyEdt((void *)edt);
       }
     }
+
+    /// DEBUG
+    if (useEpoch) {
+      PRINTF("Creating EDT with guid %u in epoch %u\n", (unsigned)*guid,
+             (unsigned)edt->epochGuid);
+    } else {
+      PRINTF("Created EDT with guid %u\n", (unsigned)*guid);
+    }
+
     return true;
   }
   return false;

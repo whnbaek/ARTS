@@ -37,6 +37,7 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 #include "artsOutOfOrder.h"
+#include "arts.h"
 #include "artsArrayDb.h"
 #include "artsAtomics.h"
 #include "artsDbFunctions.h"
@@ -54,6 +55,7 @@
 enum artsOutOfOrderType {
   ooSignalEdt,
   ooEventSatisfySlot,
+  ooPersistentEventSatisfySlot,
   ooAddDependence,
   ooHandleReadyEdt,
   ooRemoteDbSend,
@@ -201,6 +203,12 @@ inline void artsOutOfOrderHandler(void *handleMe, void *memoryPtr) {
     artsEventSatisfySlot(event->eventGuid, event->dataGuid, event->slot);
     break;
   }
+  case ooPersistentEventSatisfySlot: {
+    struct ooEventSatisfySlot *event = handleMe;
+    artsPersistentEventSatisfy(event->eventGuid, event->dataGuid, event->slot);
+    // artsEventSatisfySlot(event->eventGuid, event->dataGuid, event->slot);
+    break;
+  }
   case ooAddDependence: {
     struct ooAddDependence *dep = handleMe;
     artsAddDependence(dep->source, dep->destination, dep->slot);
@@ -334,6 +342,28 @@ void artsOutOfOrderEventSatisfySlot(artsGuid_t waitOn, artsGuid_t eventGuid,
   }
 }
 
+void artsOutOfOrderPersistentEventSatisfySlot(artsGuid_t waitOn,
+                                              artsGuid_t eventGuid,
+                                              artsGuid_t dataGuid,
+                                              uint32_t slot, bool force) {
+  struct ooEventSatisfySlot *event =
+      artsMalloc(sizeof(struct ooEventSatisfySlot));
+  event->type = ooPersistentEventSatisfySlot;
+  event->eventGuid = eventGuid;
+  // event->dataGuid = dataGuid;
+  event->slot = slot;
+  bool res;
+  if (force)
+    artsRouteTableAddOOExisting(waitOn, event, false);
+  else {
+    bool res = artsRouteTableAddOO(waitOn, event, false);
+    if (!res) {
+      artsPersistentEventSatisfy(eventGuid, dataGuid, slot);
+      artsFree(event);
+    }
+  }
+}
+
 void artsOutOfOrderAddDependence(artsGuid_t source, artsGuid_t destination,
                                  uint32_t slot, artsType_t mode,
                                  artsGuid_t waitOn) {
@@ -346,6 +376,24 @@ void artsOutOfOrderAddDependence(artsGuid_t source, artsGuid_t destination,
   bool res = artsRouteTableAddOO(waitOn, dep, false);
   if (!res) {
     artsAddDependence(source, destination, slot);
+    artsFree(dep);
+  }
+}
+
+void artsOutOfOrderAddDependenceToPersistentEvent(artsGuid_t source,
+                                                  artsGuid_t destination,
+                                                  uint32_t slot,
+                                                  artsType_t mode,
+                                                  artsGuid_t waitOn) {
+  struct ooAddDependence *dep = artsMalloc(sizeof(struct ooAddDependence));
+  dep->type = ooAddDependence;
+  dep->source = source;
+  dep->destination = destination;
+  dep->slot = slot;
+  dep->mode = mode;
+  bool res = artsRouteTableAddOO(waitOn, dep, false);
+  if (!res) {
+    artsAddDependenceToPersistentEvent(source, destination, slot);
     artsFree(dep);
   }
 }
