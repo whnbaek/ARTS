@@ -38,6 +38,7 @@
 ******************************************************************************/
 #ifndef ARTSREMOTEPROTOCOL_H
 #define ARTSREMOTEPROTOCOL_H
+#include "artsRT.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -129,6 +130,7 @@ struct __attribute__((__packed__)) artsRemoteAddDependencePacket {
   artsGuid_t source;
   artsGuid_t destination;
   uint32_t slot;
+  artsGuid_t data;
   artsType_t mode;
   unsigned int destRoute;
 };

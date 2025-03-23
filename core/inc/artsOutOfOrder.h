@@ -59,11 +59,9 @@ void artsOutOfOrderPersistentEventSatisfySlot(artsGuid_t waitOn,
 void artsOutOfOrderAddDependence(artsGuid_t source, artsGuid_t destination,
                                  uint32_t slot, artsType_t mode,
                                  artsGuid_t waitOn);
-void artsOutOfOrderAddDependenceToPersistentEvent(artsGuid_t source,
-                                                  artsGuid_t destination,
-                                                  uint32_t slot,
-                                                  artsType_t mode,
-                                                  artsGuid_t waitOn);
+void artsOutOfOrderAddDependenceToPersistentEvent(
+    artsGuid_t source, artsGuid_t destination, uint32_t slot, artsGuid_t data,
+    artsType_t mode, artsGuid_t waitOn);
 void artsOutOfOrderHandleReadyEdt(artsGuid_t triggerGuid, struct artsEdt *edt);
 void artsOutOfOrderHandleRemoteDbSend(int rank, artsGuid_t dbGuid,
                                       artsType_t mode);

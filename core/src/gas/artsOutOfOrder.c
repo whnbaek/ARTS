@@ -44,6 +44,7 @@
 #include "artsEdtFunctions.h"
 #include "artsEventFunctions.h"
 #include "artsGlobals.h"
+#include "artsRT.h"
 #include "artsRemoteFunctions.h"
 #include "artsRouteTable.h"
 #include "artsRuntime.h"
@@ -93,6 +94,7 @@ struct ooAddDependence {
   artsGuid_t source;
   artsGuid_t destination;
   uint32_t slot;
+  artsGuid_t data;
   artsType_t mode;
 };
 
@@ -380,20 +382,19 @@ void artsOutOfOrderAddDependence(artsGuid_t source, artsGuid_t destination,
   }
 }
 
-void artsOutOfOrderAddDependenceToPersistentEvent(artsGuid_t source,
-                                                  artsGuid_t destination,
-                                                  uint32_t slot,
-                                                  artsType_t mode,
-                                                  artsGuid_t waitOn) {
+void artsOutOfOrderAddDependenceToPersistentEvent(
+    artsGuid_t source, artsGuid_t destination, uint32_t slot, artsGuid_t data,
+    artsType_t mode, artsGuid_t waitOn) {
   struct ooAddDependence *dep = artsMalloc(sizeof(struct ooAddDependence));
   dep->type = ooAddDependence;
   dep->source = source;
   dep->destination = destination;
   dep->slot = slot;
+  dep->data = data;
   dep->mode = mode;
   bool res = artsRouteTableAddOO(waitOn, dep, false);
   if (!res) {
-    artsAddDependenceToPersistentEvent(source, destination, slot);
+    artsAddDependenceToPersistentEvent(source, destination, slot, data);
     artsFree(dep);
   }
 }

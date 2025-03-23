@@ -84,13 +84,15 @@ void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
 
 void artsRemoteAddDependenceToPersistenEvent(artsGuid_t source,
                                              artsGuid_t destination,
-                                             uint32_t slot, artsType_t mode,
+                                             uint32_t slot, artsGuid_t data,
+                                             artsType_t mode,
                                              unsigned int rank) {
   DPRINTF("Remote Add dependence to persistent event sent %d\n", rank);
   struct artsRemoteAddDependencePacket packet;
   packet.source = source;
   packet.destination = destination;
   packet.slot = slot;
+  packet.data = data;
   packet.mode = mode;
   packet.destRoute = artsGuidGetRank(destination);
   artsFillPacketHeader(&packet.header, sizeof(packet),

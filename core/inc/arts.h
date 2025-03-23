@@ -305,8 +305,8 @@ void artsAddLocalEventCallback(artsGuid_t source, eventCallback_t callback);
 // fire multiple times. Unlike a one-time event, a persistent event remains
 // alive after being satisfied and can be triggered repeatedly.
 artsGuid_t artsPersistentEventCreate(unsigned int route,
-                                     unsigned int latchCount);
-//, artsGuid_t dataGuid
+                                     unsigned int latchCount,
+                                     artsGuid_t dataGuid);
 
 /// Satisfy the persistent event
 void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
@@ -328,7 +328,8 @@ void artsPersistentEventDecrementLatch(artsGuid_t eventGuid,
 // If the source event latch count is zero, the destination EDT will be signaled
 // immediately.
 void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
-                                        artsGuid_t edtDest, uint32_t edtSlot);
+                                        artsGuid_t edtDest, uint32_t edtSlot,
+                                        artsGuid_t dataGuid);
 
 /*DB***************************************************************************/
 

@@ -38,6 +38,7 @@
 ******************************************************************************/
 #ifndef ARTSEMOTEFUNCTIONS_H
 #define ARTSEMOTEFUNCTIONS_H
+#include "artsRT.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,7 +49,8 @@ void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
                              uint32_t slot, artsType_t mode, unsigned int rank);
 void artsRemoteAddDependenceToPersistenEvent(artsGuid_t source,
                                              artsGuid_t destination,
-                                             uint32_t slot, artsType_t mode,
+                                             uint32_t slot, artsGuid_t data,
+                                             artsType_t mode,
                                              unsigned int rank);
 void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank);
 void artsRemoteHandleUpdateDbGuid(void *ptr);

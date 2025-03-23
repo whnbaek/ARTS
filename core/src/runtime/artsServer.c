@@ -159,7 +159,7 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     struct artsRemoteAddDependencePacket *pack =
         (struct artsRemoteAddDependencePacket *)(packet);
     artsAddDependenceToPersistentEvent(pack->source, pack->destination,
-                                       pack->slot);
+                                       pack->slot, pack->data);
     break;
   }
 
