@@ -379,12 +379,11 @@ bool artsIsEventFired(artsGuid_t event) {
 }
 
 artsGuid_t artsPersistentEventCreate(unsigned int route,
-                                     unsigned int latchCount,
-                                     artsGuid_t dataGuid) {
+                                     unsigned int latchCount) {
   ARTSEDTCOUNTERTIMERSTART(eventCreateCounter);
   artsGuid_t guid = NULL_GUID;
   artsEventCreateInternal(&guid, route, INITIAL_DEPENDENT_SIZE, latchCount,
-                          false, dataGuid);
+                          false, NULL_GUID);
   ARTSEDTCOUNTERTIMERENDINCREMENT(eventCreateCounter);
   return guid;
 }
