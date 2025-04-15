@@ -389,6 +389,19 @@ artsGuid_t artsPersistentEventCreate(unsigned int route,
   return guid;
 }
 
+void artsPersistentEventFreeDependencies(struct artsEvent *event) {
+  struct artsDependentList *trail, *current = event->dependent.next;
+  while (current) {
+    trail = current;
+    current = current->next;
+    artsFree(trail);
+  }
+  event->dependent.next = NULL;
+  event->dependent.size = INITIAL_DEPENDENT_SIZE;
+  artsAtomicSwap(&event->dependentCount, 0U);
+  artsAtomicSwap(&event->latchCount, 0U);
+}
+
 void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
                                 uint32_t action) {
   ARTSEDTCOUNTERTIMERSTART(signalEventCounter);
@@ -489,6 +502,9 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
       if (!event->destroyOnFire) {
         artsEventFree(event);
         artsRouteTableRemoveItem(eventGuid);
+      }
+      else {
+        artsPersistentEventFreeDependencies(event);
       }
     }
   }

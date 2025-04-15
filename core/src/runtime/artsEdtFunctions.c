@@ -242,8 +242,8 @@ bool artsEdtCreateInternal(struct artsEdt *edt, artsType_t mode,
 
     /// DEBUG
     if (useEpoch) {
-      PRINTF("Creating EDT with guid %u in epoch %u\n", (unsigned)*guid,
-             (unsigned)edt->epochGuid);
+      PRINTF("Creating EDT with guid %u in epoch %u and %u deps\n",
+             (unsigned)*guid, (unsigned)edt->epochGuid, (unsigned)edt->depc);
     } else {
       PRINTF("Created EDT with guid %u\n", (unsigned)*guid);
     }
@@ -381,6 +381,8 @@ void internalSignalEdt(artsGuid_t edtPacket, uint32_t slot, artsGuid_t dataGuid,
         unsigned int res = artsAtomicSub(&edt->depcNeeded, 1U);
         // PRINTF("SIGNAL: %lu %lu %u %p %d\n", edt->currentEdt, dataGuid, slot,
         // ptr, mode);
+        PRINTF("EDT %u signaled - Current DepCount %u \n", edt->currentEdt, 
+               res);
         if (res == 0)
           artsHandleReadyEdt(edt);
       } else {
