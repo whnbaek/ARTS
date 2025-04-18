@@ -407,8 +407,6 @@ artsPushPersistentEventVersion(struct artsPersistentEvent *event) {
   struct artsPersistentEventVersion *next = artsLinkListNewItem(
       (sizeof(struct artsPersistentEventVersion) +
        (sizeof(struct artsDependent) * INITIAL_DEPENDENT_SIZE)));
-  PRINTF(" - Pushing new event version, current size: %u\n",
-         artsLinkListGetSize(versions));
   artsLinkListPushBack(versions, next);
   next->latchCount = 0;
   next->dependentCount = 0;
@@ -418,14 +416,12 @@ artsPushPersistentEventVersion(struct artsPersistentEvent *event) {
 
 struct artsPersistentEventVersion *
 artsGetFrontPersistentEventVersion(struct artsPersistentEvent *event) {
-  PRINTF(" - Getting front event version\n");
   return (struct artsPersistentEventVersion *)artsLinkListGetFrontData(
       artsGetEventVersions(event));
 }
 
 struct artsPersistentEventVersion *
 artsGetLastPersistentEventVersion(struct artsPersistentEvent *event) {
-  PRINTF(" - Getting last event version\n");
   return (struct artsPersistentEventVersion *)artsLinkListGetTailData(
       artsGetEventVersions(event));
 }
@@ -450,11 +446,9 @@ bool artsPersistentEventCreateInternal(artsGuid_t *guid, unsigned int route,
         artsRouteTableFireOO(*guid, artsOutOfOrderHandler);
       } else {
         *guid = artsGuidCreateForRank(route, ARTS_PERSISTENT_EVENT);
-        PRINTF("- Creating new persistent event %u\n", *guid);
         artsRouteTableAddItem(eventPacket, *guid, artsGlobalRankId, false);
       }
     } else {
-      PRINTF("- Creating remote persistent event for rank %u\n", route);
       artsRemoteMemoryMove(route, *guid, eventPacket, eventSize,
                            ARTS_REMOTE_PERSISTENT_EVENT_MOVE_MSG, artsFree);
     }
@@ -488,14 +482,12 @@ bool artsPersistentEventFreeVersion(struct artsPersistentEvent *event) {
 
   /// Free the version
   if (last) {
-    PRINTF(" - Reseting last version\n");
     version->latchCount = 0;
     version->dependentCount = 0;
   } else {
     versions->headPtr = versions->headPtr->next;
     struct artsLinkListItem *item = ((struct artsLinkListItem *)version) - 1;
     artsFree(item);
-    PRINTF(" - Freeing deps for event\n");
   }
 
   artsUnlock(&versions->lock);
@@ -558,18 +550,13 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
       if(res == 1)
         version = artsPushPersistentEventVersion(event);
       res = artsAtomicAdd(&version->latchCount, 1U);
-      PRINTF(" - Incrementing latch count for event %u - Latch count: %d\n",
-             eventGuid, res);
     } else if (action == ARTS_EVENT_LATCH_DECR_SLOT) {
       res = artsAtomicFetchAdd(&version->latchCount, 0U);
       if(res == (unsigned int)-1)
         version = artsPushPersistentEventVersion(event);
       res = artsAtomicSub(&version->latchCount, 1U);
-      PRINTF(" - Decrementing latch count for event %u - Latch count:%d\n",
-             eventGuid, res);
     } else if (action == ARTS_EVENT_UPDATE) {
       res = artsAtomicFetchAdd(&version->latchCount, 0U);
-      PRINTF(" - Updating event %u - Latch count: %d\n", eventGuid, res);
     } else {
       PRINTF("Bad latch slot %u\n", action);
       artsDebugGenerateSegFault();
@@ -577,7 +564,6 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
 
     if (res == 0) {
       assert(version != NULL);
-      PRINTF("   Firing persistent event %u\n", eventGuid);
       struct artsDependentList *dependentList = &version->dependent;
       struct artsDependent *dependent = version->dependent.dependents;
       int i, j;
