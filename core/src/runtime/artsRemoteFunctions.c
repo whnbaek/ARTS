@@ -82,7 +82,7 @@ void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
   artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
 }
 
-void artsRemoteAddDependenceToPersistenEvent(artsGuid_t source,
+void artsRemoteAddDependenceToPersistentEvent(artsGuid_t source,
                                              artsGuid_t destination,
                                              uint32_t slot, artsGuid_t data,
                                              artsType_t mode,
@@ -355,6 +355,21 @@ void artsRemoteHandleEventMove(void *ptr) {
   artsRouteTableFireOO(packet->guid, artsOutOfOrderHandler);
 }
 
+void artsRemoteHandlePersistentEventMove(void *ptr) {
+  struct artsRemoteMemoryMovePacket *packet = ptr;
+  unsigned int size =
+      packet->header.size - sizeof(struct artsRemoteMemoryMovePacket);
+
+  ARTSSETMEMSHOTTYPE(artsPersistentEventMemorySize);
+  struct artsHeader *memPacket = artsMalloc(size);
+  ARTSSETMEMSHOTTYPE(artsPersistentEventMemorySize);
+
+  memcpy(memPacket, packet + 1, size);
+  artsRouteTableAddItemRace(memPacket, (artsGuid_t)packet->guid,
+                            artsGlobalRankId, false);
+  artsRouteTableFireOO(packet->guid, artsOutOfOrderHandler);
+}
+
 void artsRemoteSignalEdt(artsGuid_t edt, artsGuid_t db, uint32_t slot,
                          artsType_t mode) {
   PRINTF("Remote Signal %ld %ld %d %d\n", edt, db, slot, artsGuidGetRank(edt));
@@ -392,7 +407,6 @@ void artsRemoteEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,
 
 void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid,
                                           artsGuid_t dataGuid, uint32_t slot) {
-  DPRINTF("Remote Satisfy Slot\n");
   struct artsRemoteEventSatisfySlotPacket packet;
   packet.event = eventGuid;
   packet.db = dataGuid;

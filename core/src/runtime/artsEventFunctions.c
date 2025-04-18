@@ -45,10 +45,13 @@
 #include "artsGlobals.h"
 #include "artsGuid.h"
 #include "artsIntrospection.h"
+#include "artsLinkList.h"
 #include "artsOutOfOrder.h"
 #include "artsRT.h"
 #include "artsRemoteFunctions.h"
 #include "artsRouteTable.h"
+#include <assert.h>
+#include <time.h>
 
 extern __thread struct artsEdt *currentEdt;
 
@@ -163,20 +166,26 @@ void artsEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,
       artsDebugGenerateSegFault();
     }
 
+    /// When the latch count reaches 0, fire the event
     if (!res) {
+      /// If the event is already fired, we should not fire it again
       if (artsAtomicSwapBool(&event->fired, true)) {
         PRINTF(
             "ARTS_EVENT_LATCH_T already fired guid: %lu data: %lu slot: %u\n",
             eventGuid, dataGuid, slot);
         artsDebugGenerateSegFault();
-      } else {
+      }
+      /// If the event is not fired, we need to fire it
+      else {
         struct artsDependentList *dependentList = &event->dependent;
         struct artsDependent *dependent = event->dependent.dependents;
         int i, j;
+        /// Capture current state
         unsigned int lastKnown = artsAtomicFetchAdd(&event->dependentCount, 0U);
         event->pos = lastKnown + 1;
         i = 0;
         int totalSize = 0;
+        /// Process all dependents up to lastKnown
         while (i < lastKnown) {
           j = i - totalSize;
           while (i < lastKnown && j < dependentList->size) {
@@ -237,15 +246,14 @@ struct artsDependent *artsDependentGet(struct artsDependentList *head,
   volatile struct artsDependentList *temp;
 
   while (1) {
-    // totalSize += list->size;
-
+    /// If the position is greater than the size of the list, we need to
+    /// allocate a new list
     if (position >= list->size) {
       if (position - list->size == 0) {
         if (list->next == NULL) {
           temp = artsCalloc(sizeof(struct artsDependentList) +
                             sizeof(struct artsDependent) * list->size * 2);
           temp->size = list->size * 2;
-
           list->next = (struct artsDependentList *)temp;
         }
       }
@@ -259,7 +267,6 @@ struct artsDependent *artsDependentGet(struct artsDependentList *head,
     } else
       break;
   }
-
   return list->dependents + position;
 }
 
@@ -378,40 +385,154 @@ bool artsIsEventFired(artsGuid_t event) {
   return fired;
 }
 
-artsGuid_t artsPersistentEventCreate(unsigned int route,
-                                     unsigned int latchCount,
-                                     artsGuid_t dataGuid) {
-  ARTSEDTCOUNTERTIMERSTART(eventCreateCounter);
-  artsGuid_t guid = NULL_GUID;
-  artsEventCreateInternal(&guid, route, INITIAL_DEPENDENT_SIZE, latchCount,
-                          false, dataGuid);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(eventCreateCounter);
-  return guid;
+/// Persistent events
+struct artsPersistentEventVersion *
+artsPushPersistentEventVersion(struct artsPersistentEvent *event);
+
+struct artsLinkList *artsGetEventVersions(struct artsPersistentEvent *event) {
+  if (event->versions != NULL)
+    return event->versions;
+  event->versions = artsLinkListGroupNew(1);
+  struct artsPersistentEventVersion *version =
+      artsPushPersistentEventVersion(event);
+  version->dependent.next = NULL;
+
+  assert(version != NULL);
+  return event->versions;
 }
 
-void artsPersistentEventFreeDependencies(struct artsEvent *event) {
-  struct artsDependentList *trail, *current = event->dependent.next;
+struct artsPersistentEventVersion *
+artsPushPersistentEventVersion(struct artsPersistentEvent *event) {
+  struct artsLinkList *versions = artsGetEventVersions(event);
+  struct artsPersistentEventVersion *next = artsLinkListNewItem(
+      (sizeof(struct artsPersistentEventVersion) +
+       (sizeof(struct artsDependent) * INITIAL_DEPENDENT_SIZE)));
+  PRINTF(" - Pushing new event version, current size: %u\n",
+         artsLinkListGetSize(versions));
+  artsLinkListPushBack(versions, next);
+  next->latchCount = 0;
+  next->dependentCount = 0;
+  next->dependent.size = INITIAL_DEPENDENT_SIZE;
+  return next;
+}
+
+struct artsPersistentEventVersion *
+artsGetFrontPersistentEventVersion(struct artsPersistentEvent *event) {
+  PRINTF(" - Getting front event version\n");
+  return (struct artsPersistentEventVersion *)artsLinkListGetFrontData(
+      artsGetEventVersions(event));
+}
+
+struct artsPersistentEventVersion *
+artsGetLastPersistentEventVersion(struct artsPersistentEvent *event) {
+  PRINTF(" - Getting last event version\n");
+  return (struct artsPersistentEventVersion *)artsLinkListGetTailData(
+      artsGetEventVersions(event));
+}
+
+bool artsPersistentEventCreateInternal(artsGuid_t *guid, unsigned int route,
+                                       artsGuid_t eventData) {
+  const unsigned int eventSize = sizeof(struct artsPersistentEvent);
+  ARTSSETMEMSHOTTYPE(artsPersistentEventMemorySize);
+  void *eventPacket = artsCalloc(eventSize);
+  ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
+
+  if (eventSize) {
+    struct artsPersistentEvent *event = eventPacket;
+    event->header.type = ARTS_PERSISTENT_EVENT;
+    event->header.size = eventSize;
+    event->versions = NULL;
+    event->data = eventData;
+
+    if (route == artsGlobalRankId) {
+      if (*guid) {
+        artsRouteTableAddItem(eventPacket, *guid, artsGlobalRankId, false);
+        artsRouteTableFireOO(*guid, artsOutOfOrderHandler);
+      } else {
+        *guid = artsGuidCreateForRank(route, ARTS_PERSISTENT_EVENT);
+        PRINTF("- Creating new persistent event %u\n", *guid);
+        artsRouteTableAddItem(eventPacket, *guid, artsGlobalRankId, false);
+      }
+    } else {
+      PRINTF("- Creating remote persistent event for rank %u\n", route);
+      artsRemoteMemoryMove(route, *guid, eventPacket, eventSize,
+                           ARTS_REMOTE_PERSISTENT_EVENT_MOVE_MSG, artsFree);
+    }
+    return true;
+  }
+  PRINTF(" - Failed to create persistent event\n");
+  return false;
+}
+
+bool artsPersistentEventFreeVersion(struct artsPersistentEvent *event) {
+  struct artsLinkList *versions = event->versions;
+  assert(versions != NULL);
+  bool last = true;
+  artsLock(&versions->lock);
+
+  if (versions->headPtr != versions->tailPtr)
+    last = false;
+
+  /// Get the top version
+  struct artsPersistentEventVersion *version =
+      (struct artsPersistentEventVersion *)(versions->headPtr + 1);
+  assert(version != NULL);
+
+  /// Free dependencies for this version
+  struct artsDependentList *trail, *current = version->dependent.next;
   while (current) {
     trail = current;
     current = current->next;
     artsFree(trail);
   }
-  event->dependent.next = NULL;
-  event->dependent.size = INITIAL_DEPENDENT_SIZE;
-  artsAtomicSwap(&event->dependentCount, 0U);
-  artsAtomicSwap(&event->latchCount, 0U);
+
+  /// Free the version
+  if (last) {
+    PRINTF(" - Reseting last version\n");
+    version->latchCount = 0;
+    version->dependentCount = 0;
+  } else {
+    versions->headPtr = versions->headPtr->next;
+    struct artsLinkListItem *item = ((struct artsLinkListItem *)version) - 1;
+    artsFree(item);
+    PRINTF(" - Freeing deps for event\n");
+  }
+
+  artsUnlock(&versions->lock);
+  return last;
+}
+
+artsGuid_t artsPersistentEventCreate(unsigned int route,
+                                     unsigned int latchCount,
+                                     artsGuid_t dataGuid) {
+  ARTSEDTCOUNTERTIMERSTART(persistentEventCreateCounter);
+  artsGuid_t guid = NULL_GUID;
+  artsPersistentEventCreateInternal(&guid, route, dataGuid);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(persistentEventCreateCounter);
+  return guid;
+}
+
+void artsPersistentEventDestroy(artsGuid_t guid) {
+  struct artsPersistentEvent *event =
+      (struct artsPersistentEvent *)artsRouteTableLookupItem(guid);
+  if (event != NULL) {
+    artsRouteTableRemoveItem(guid);
+    while (!artsPersistentEventFreeVersion(event))
+      ;
+    artsFree(event);
+  }
 }
 
 void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
                                 uint32_t action) {
-  ARTSEDTCOUNTERTIMERSTART(signalEventCounter);
+  ARTSEDTCOUNTERTIMERSTART(signalPersistentEventCounter);
   if (currentEdt && currentEdt->invalidateCount > 0) {
     artsOutOfOrderPersistentEventSatisfySlot(currentEdt->currentEdt, eventGuid,
                                              dataGuid, action, true);
     return;
   }
-  struct artsEvent *event =
-      (struct artsEvent *)artsRouteTableLookupItem(eventGuid);
+  struct artsPersistentEvent *event =
+      (struct artsPersistentEvent *)artsRouteTableLookupItem(eventGuid);
   if (!event) {
     unsigned int rank = artsGuidGetRank(eventGuid);
     if (rank != artsGlobalRankId) {
@@ -427,31 +548,40 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
       PRINTF("Data: NULL_GUID, avoiding signaling\n");
       artsDebugGenerateSegFault();
     }
-
+    PRINTF("Satisfy Persistent Event:%u, Data:%u\n", eventGuid, dataGuid);
     unsigned int res;
+    struct artsPersistentEventVersion *version =
+        artsGetFrontPersistentEventVersion(event);
+    assert(version != NULL);
     if (action == ARTS_EVENT_LATCH_INCR_SLOT) {
-      res = artsAtomicAdd(&event->latchCount, 1U);
-      PRINTF("Incrementing latch count for event %u - Latch count: %d\n",
+      res = artsAtomicFetchAdd(&version->latchCount, 0U);
+      if(res == 1)
+        version = artsPushPersistentEventVersion(event);
+      res = artsAtomicAdd(&version->latchCount, 1U);
+      PRINTF(" - Incrementing latch count for event %u - Latch count: %d\n",
              eventGuid, res);
     } else if (action == ARTS_EVENT_LATCH_DECR_SLOT) {
-      res = artsAtomicSub(&event->latchCount, 1U);
-      PRINTF("Decrementing latch count for event %u - Latch count:%d\n",
+      res = artsAtomicFetchAdd(&version->latchCount, 0U);
+      if(res == (unsigned int)-1)
+        version = artsPushPersistentEventVersion(event);
+      res = artsAtomicSub(&version->latchCount, 1U);
+      PRINTF(" - Decrementing latch count for event %u - Latch count:%d\n",
              eventGuid, res);
     } else if (action == ARTS_EVENT_UPDATE) {
-      res = artsAtomicFetchAdd(&event->latchCount, 0U);
-      PRINTF("Updating event %u - Latch count: %d\n", eventGuid, res);
+      res = artsAtomicFetchAdd(&version->latchCount, 0U);
+      PRINTF(" - Updating event %u - Latch count: %d\n", eventGuid, res);
     } else {
       PRINTF("Bad latch slot %u\n", action);
       artsDebugGenerateSegFault();
     }
 
     if (res == 0) {
-      PRINTF("Firing persistent event %u\n", eventGuid);
-      struct artsDependentList *dependentList = &event->dependent;
-      struct artsDependent *dependent = event->dependent.dependents;
+      assert(version != NULL);
+      PRINTF("   Firing persistent event %u\n", eventGuid);
+      struct artsDependentList *dependentList = &version->dependent;
+      struct artsDependent *dependent = version->dependent.dependents;
       int i, j;
-      unsigned int lastKnown = artsAtomicFetchAdd(&event->dependentCount, 0U);
-      event->pos = lastKnown + 1;
+      unsigned int lastKnown = artsAtomicFetchAdd(&version->dependentCount, 0U);
       i = 0;
       int totalSize = 0;
       while (i < lastKnown) {
@@ -499,17 +629,13 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
         dependentList = dependentList->next;
         dependent = dependentList->dependents;
       }
-      if (!event->destroyOnFire) {
-        artsEventFree(event);
-        artsRouteTableRemoveItem(eventGuid);
-      }
-      else {
-        artsPersistentEventFreeDependencies(event);
-      }
+
+      artsPersistentEventFreeVersion(event);
     }
   }
-  artsUpdatePerformanceMetric(artsEventSignalThroughput, artsThread, 1, false);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(signalEventCounter);
+  artsUpdatePerformanceMetric(artsPersistentEventSignalThroughput, artsThread,
+                              1, false);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(signalPersistentEventCounter);
 }
 
 void artsPersistentEventIncrementLatch(artsGuid_t eventGuid,
@@ -526,7 +652,7 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
                                         artsGuid_t edtDest, uint32_t edtSlot,
                                         artsGuid_t dataGuid) {
   /// Check that the eventSource is a persistent event
-  if (artsGuidGetType(eventSource) != ARTS_EVENT) {
+  if (artsGuidGetType(eventSource) != ARTS_PERSISTENT_EVENT) {
     PRINTF("Event source %u is not a persistent event\n", eventSource);
     artsDebugGenerateSegFault();
     return;
@@ -536,8 +662,8 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
   if (sourceHeader == NULL) {
     unsigned int rank = artsGuidGetRank(eventSource);
     if (rank != artsGlobalRankId) {
-      artsRemoteAddDependenceToPersistenEvent(eventSource, edtDest, edtSlot,
-                                              dataGuid, mode, rank);
+      artsRemoteAddDependenceToPersistentEvent(eventSource, edtDest, edtSlot,
+                                               dataGuid, mode, rank);
     } else {
       artsOutOfOrderAddDependenceToPersistentEvent(
           eventSource, edtDest, edtSlot, dataGuid, mode, eventSource);
@@ -547,39 +673,39 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
 
   PRINTF("Add Dependence from persistent event %u to EDT %u at %u\n",
          eventSource, edtDest, edtSlot);
-  struct artsEvent *event = (struct artsEvent *)sourceHeader;
+  struct artsPersistentEvent *event =
+      (struct artsPersistentEvent *)sourceHeader;
+  struct artsPersistentEventVersion *version =
+      artsGetLastPersistentEventVersion(event);
+  assert(version != NULL);
   if (mode == ARTS_EDT) {
-    struct artsDependentList *dependentList = &event->dependent;
-    struct artsDependent *dependent;
-    unsigned int position = artsAtomicFetchAdd(&event->dependentCount, 1U);
-    dependent = artsDependentGet(dependentList, position);
+    struct artsDependentList *dependentList = &version->dependent;
+    unsigned int position = artsAtomicFetchAdd(&version->dependentCount, 1U);
+    struct artsDependent *dependent = artsDependentGet(dependentList, position);
+    PRINTF("Adding dependent %u\n", position);
+    assert(dependent != NULL);
     dependent->type = ARTS_EDT;
     dependent->addr = edtDest;
     dependent->slot = edtSlot;
     COMPILER_DO_NOT_REORDER_WRITES_BETWEEN_THIS_POINT();
     dependent->doneWriting = true;
 
-    unsigned int destroyEvent = (event->destroyOnFire != -1)
-                                    ? artsAtomicSub(&event->destroyOnFire, 1U)
-                                    : 1;
-    if (artsAtomicFetchAdd(&event->latchCount, 0U) == 0) {
+    unsigned int res = artsAtomicFetchAdd(&version->latchCount, 0U);
+    PRINTF(" - Latch count: %u\n", res);
+    if (res == 0) {
       artsPersistentEventSatisfy(eventSource, dataGuid, ARTS_EVENT_UPDATE);
     }
   } else if (mode == ARTS_EVENT) {
-    struct artsDependentList *dependentList = &event->dependent;
-    struct artsDependent *dependent;
-    unsigned int position = artsAtomicFetchAdd(&event->dependentCount, 1U);
-    dependent = artsDependentGet(dependentList, position);
+    struct artsDependentList *dependentList = &version->dependent;
+    unsigned int position = artsAtomicFetchAdd(&version->dependentCount, 1U);
+    struct artsDependent *dependent = artsDependentGet(dependentList, position);
     dependent->type = ARTS_EVENT;
     dependent->addr = edtDest;
     dependent->slot = edtSlot;
     COMPILER_DO_NOT_REORDER_WRITES_BETWEEN_THIS_POINT();
     dependent->doneWriting = true;
 
-    unsigned int destroyEvent = (event->destroyOnFire != -1)
-                                    ? artsAtomicSub(&event->destroyOnFire, 1U)
-                                    : 1;
-    if (artsAtomicFetchAdd(&event->latchCount, 0U) == 0) {
+    if (artsAtomicFetchAdd(&version->latchCount, 0U) == 0) {
       artsPersistentEventSatisfy(eventSource, dataGuid, ARTS_EVENT_UPDATE);
     }
   }

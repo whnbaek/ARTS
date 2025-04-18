@@ -38,6 +38,7 @@
 ******************************************************************************/
 #ifndef ARTSINTROSPECTION_H
 #define ARTSINTROSPECTION_H
+#include "artsRT.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,6 +132,7 @@ typedef enum artsMetricType {
   artsEdtLastLocalHit,
   artsEdtSignalThroughput,
   artsEventSignalThroughput,
+  artsPersistentEventSignalThroughput,
   artsGetBW,
   artsPutBW,
   artsNetworkSendBW,
@@ -186,6 +188,7 @@ typedef enum artsMetricType {
   artsDefaultMemorySize,
   artsEdtMemorySize,
   artsEventMemorySize,
+  artsPersistentEventMemorySize,
   artsDbMemorySize,
   artsBufferMemorySize,
   artsDbCount,

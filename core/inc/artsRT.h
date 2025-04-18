@@ -43,6 +43,7 @@ extern "C" {
 #endif
 
 // #define _GNU_SOURCE
+#include "artsLinkList.h"
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -76,6 +77,7 @@ typedef enum {
   ARTS_EDT,
   ARTS_GPU_EDT,
   ARTS_EVENT,
+  ARTS_PERSISTENT_EVENT,
   ARTS_EPOCH,
   ARTS_CALLBACK,
   ARTS_BUFFER,
@@ -91,9 +93,8 @@ typedef enum {
   // EDT. This mode is currently broken!!!
   ARTS_DB_WRITE,
 
-  // ARTS_DB_PIN: This mode bypasses the memory model.
-  // The DB is only available on a single node.
-  // To interact with it remotely use put/gets
+  // ARTS_DB_PIN: This mode bypasses the memory model. The DB is only available
+  // on a single node. To interact with it remotely use put/gets
   ARTS_DB_PIN,
 
   // ARTS_DB_ONCE: This mode will automatically free the DB after it is
@@ -186,13 +187,27 @@ struct artsDependentList {
   struct artsDependent dependents[];
 };
 
+struct artsPersistentEventVersion {
+  volatile unsigned int latchCount;
+  volatile unsigned int dependentCount;
+  struct artsDependentList dependent;
+};
+
+struct artsPersistentEvent {
+  struct artsHeader header;
+  volatile bool fired;
+
+  artsGuid_t data;
+  struct artsLinkList *versions;
+  // struct artsPersistentEventVersion versions;
+} __attribute__((aligned));
+
 struct artsEvent {
   struct artsHeader header;
   volatile bool fired;
   volatile unsigned int destroyOnFire;
   volatile unsigned int latchCount;
   volatile unsigned int pos;
-  volatile unsigned int lastKnown;
   volatile unsigned int dependentCount;
   artsGuid_t data;
   struct artsDependentList dependent;

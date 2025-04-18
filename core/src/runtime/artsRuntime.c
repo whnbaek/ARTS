@@ -381,6 +381,7 @@ void artsHandleRemoteStolenEdt(struct artsEdt *edt) {
 }
 
 void artsHandleReadyEdt(struct artsEdt *edt) {
+  PRINTF("EDT %u Ready\n", edt->currentEdt);
   acquireDbs(edt);
   if (artsAtomicSub(&edt->depcNeeded, 1U) == 0) {
     incrementQueueEpoch(edt->epochGuid);

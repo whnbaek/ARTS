@@ -174,6 +174,7 @@ artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode) {
 void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
   ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
   artsType_t mode = artsGuidGetType(guid);
+  DPRINTF("DB create with guid: %u and mode %u\n", guid, mode);
   void *ptr = NULL;
   if (artsIsGuidLocal(guid)) {
     unsigned int dbSize = size + sizeof(struct artsDb);
@@ -388,14 +389,6 @@ void acquireDbs(struct artsEdt *edt) {
         } else {
           artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
         }
-        //                    }
-        //                    else
-        //                    {
-        //                        PRINTF("Cannot acquire DB %lu because it is
-        //                        pinned on %u\n", depv[i].guid,
-        //                        artsGuidGetRank(depv[i].guid)); depv[i].ptr =
-        //                        NULL; artsAtomicSub(&edt->depcNeeded, 1U);
-        //                    }
         break;
       }
       case ARTS_DB_LC_SYNC: {
@@ -427,6 +420,7 @@ void acquireDbs(struct artsEdt *edt) {
       case ARTS_DB_LC:
       case ARTS_DB_READ:
       case ARTS_DB_WRITE: {
+        // PRINTF("- DB_NO_PIN: %u\n", depv[i].guid);
         // Owner Rank
         if (owner == artsGlobalRankId) {
           int validRank = -1;
@@ -436,7 +430,7 @@ void acquireDbs(struct artsEdt *edt) {
           if (dbTemp) {
             if (artsAddDbDuplicate(dbTemp, artsGlobalRankId, edt, i,
                                    depv[i].mode)) {
-              PRINTF("Adding duplicate %lu\n", depv[i].guid);
+              PRINTF("Adding duplicate %u\n", depv[i].guid);
               // Owner rank and we have the valid copy
               if (validRank == artsGlobalRankId) {
                 dbFound = dbTemp;
@@ -469,7 +463,7 @@ void acquireDbs(struct artsEdt *edt) {
           }
           // The Db hasn't been created yet
           else {
-            PRINTF("%lu out of order request slot %u\n", depv[i].guid, i);
+            PRINTF("%u out of order request slot %u\n", depv[i].guid, i);
             artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
         } else {
@@ -501,6 +495,7 @@ void acquireDbs(struct artsEdt *edt) {
 
       if (dbFound) {
         depv[i].ptr = dbFound + 1;
+        PRINTF("DB found: %f\n", *(float *)depv[i].ptr);
         // PRINTF("Setting[%u]: %p %s - %d\n", i, depv[i].ptr,
         //        getTypeName(depv[i].mode), *((int *)depv[i].ptr));
       }
@@ -509,6 +504,7 @@ void acquireDbs(struct artsEdt *edt) {
       artsAtomicSub(&edt->depcNeeded, 1U);
     }
   }
+  PRINTF("EDT has finished acquiring DBs %u\n", edt->currentEdt);
 }
 
 void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {

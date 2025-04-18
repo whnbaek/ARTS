@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,* 
+** implied, or assumes any legal liability or responsibility for the accuracy,*
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -39,14 +39,29 @@
 #ifndef ARTSLINKLIST_H
 #define ARTSLINKLIST_H
 
+#include <stdint.h>
 struct artsLinkList;
+struct artsLinkListItem {
+  struct artsLinkListItem *next;
+};
 
-struct artsLinkList * artsLinkListGroupNew(unsigned int listSize);
-struct artsLinkList * artsLinkListGet(struct artsLinkList *linkList, unsigned int position);
+struct artsLinkList {
+  struct artsLinkListItem *headPtr;
+  struct artsLinkListItem *tailPtr;
+  volatile unsigned int lock;
+};
+
+struct artsLinkList *artsLinkListGroupNew(unsigned int listSize);
+struct artsLinkList *artsLinkListGet(struct artsLinkList *linkList,
+                                     unsigned int position);
+unsigned artsLinkListGetSize(struct artsLinkList *linkList);
+uint8_t artsLinkListIsEmpty(struct artsLinkList *linkList);
+void *artsLinkListGetFrontData(struct artsLinkList *linkList);
+void *artsLinkListGetTailData(struct artsLinkList *linkList);
 void artsLinkListDelete(void *linkList);
 void artsLinkListPushBack(struct artsLinkList *list, void *item);
-void * artsLinkListPopFront( struct artsLinkList * list, void ** freePos );
-void artsLinkListDeleteItem( void * toDelete );
-void * artsLinkListNewItem(unsigned int size);
+void *artsLinkListPopFront(struct artsLinkList *list, void **freePos);
+void artsLinkListDeleteItem(void *toDelete);
+void *artsLinkListNewItem(unsigned int size);
 
 #endif

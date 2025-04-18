@@ -47,7 +47,7 @@ extern "C" {
 
 void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
                              uint32_t slot, artsType_t mode, unsigned int rank);
-void artsRemoteAddDependenceToPersistenEvent(artsGuid_t source,
+void artsRemoteAddDependenceToPersistentEvent(artsGuid_t source,
                                              artsGuid_t destination,
                                              uint32_t slot, artsGuid_t data,
                                              artsType_t mode,
@@ -69,6 +69,7 @@ void artsRemoteMemoryMoveNoFree(unsigned int route, artsGuid_t guid, void *ptr,
 void artsRemoteHandleEdtMove(void *ptr);
 void artsRemoteHandleDbMove(void *ptr);
 void artsRemoteHandleEventMove(void *ptr);
+void artsRemoteHandlePersistentEventMove(void *ptr);
 void artsRemoteSignalEdt(artsGuid_t edt, artsGuid_t db, uint32_t slot,
                          artsType_t mode);
 void artsRemoteEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,

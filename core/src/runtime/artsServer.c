@@ -222,6 +222,10 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     artsRemoteHandleEventMove(packet);
     break;
   }
+  case ARTS_REMOTE_PERSISTENT_EVENT_MOVE_MSG: {
+    artsRemoteHandlePersistentEventMove(packet);
+    break;
+  }
   case ARTS_REMOTE_METRIC_UPDATE_MSG: {
 
     struct artsRemoteMetricUpdate *pack =
