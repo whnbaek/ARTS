@@ -381,7 +381,7 @@ void internalSignalEdt(artsGuid_t edtPacket, uint32_t slot, artsGuid_t dataGuid,
         unsigned int res = artsAtomicSub(&edt->depcNeeded, 1U);
         // PRINTF("SIGNAL: %lu %lu %u %p %d\n", edt->currentEdt, dataGuid, slot,
         // ptr, mode);
-        PRINTF("EDT %u signaled - Current DepCount %u \n", edt->currentEdt, 
+        PRINTF("EDT %u signaled - Current DepCount %u \n", edt->currentEdt,
                res);
         if (res == 0)
           artsHandleReadyEdt(edt);

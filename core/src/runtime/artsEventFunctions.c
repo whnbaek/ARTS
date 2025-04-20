@@ -53,6 +53,8 @@
 #include <assert.h>
 #include <time.h>
 
+#define DPRINTF(...)
+
 extern __thread struct artsEdt *currentEdt;
 
 bool artsEventCreateInternal(artsGuid_t *guid, unsigned int route,
@@ -537,28 +539,37 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
     if (dataGuid != NULL_GUID) {
       event->data = dataGuid;
     } else {
-      PRINTF("Data: NULL_GUID, avoiding signaling\n");
+      DPRINTF("Data: NULL_GUID, avoiding signaling\n");
       artsDebugGenerateSegFault();
     }
-    PRINTF("Satisfy Persistent Event:%u, Data:%u\n", eventGuid, dataGuid);
+    // PRINTF("Satisfy Persistent Event:%u, Data:%u\n", eventGuid, dataGuid);
     unsigned int res;
     struct artsPersistentEventVersion *version =
         artsGetFrontPersistentEventVersion(event);
     assert(version != NULL);
     if (action == ARTS_EVENT_LATCH_INCR_SLOT) {
       res = artsAtomicFetchAdd(&version->latchCount, 0U);
-      if(res == 1)
+      if (res == 1) {
+        DPRINTF("Latch count is 1 for event %u, creating new version\n",
+                eventGuid);
         version = artsPushPersistentEventVersion(event);
+      }
       res = artsAtomicAdd(&version->latchCount, 1U);
+      DPRINTF("Increment latch count to %d for event %u\n", res, eventGuid);
     } else if (action == ARTS_EVENT_LATCH_DECR_SLOT) {
       res = artsAtomicFetchAdd(&version->latchCount, 0U);
-      if(res == (unsigned int)-1)
+      if (res == (unsigned int)-1) {
+        DPRINTF("Latch count is -1 for event %u, creating new version\n",
+                eventGuid);
         version = artsPushPersistentEventVersion(event);
+      }
       res = artsAtomicSub(&version->latchCount, 1U);
+      DPRINTF("Decrement latch count to %d for event %u \n", res, eventGuid);
     } else if (action == ARTS_EVENT_UPDATE) {
       res = artsAtomicFetchAdd(&version->latchCount, 0U);
+      DPRINTF("Update latch count to %d for event %u \n", res, eventGuid);
     } else {
-      PRINTF("Bad latch slot %u\n", action);
+      DPRINTF("Bad latch slot %u\n", action);
       artsDebugGenerateSegFault();
     }
 
@@ -579,7 +590,7 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
             if (event->data != NULL_GUID)
               artsSignalEdt(dependent[j].addr, dependent[j].slot, event->data);
             else
-              PRINTF("Event data is NULL_GUID for event %u\n", eventGuid);
+              DPRINTF("Event data is NULL_GUID for event %u\n", eventGuid);
           } else if (dependent[j].type == ARTS_EVENT) {
 #ifdef COUNT
             // THIS IS A TEMP FIX... problem is recursion...
@@ -657,7 +668,7 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
     return;
   }
 
-  PRINTF("Add Dependence from persistent event %u to EDT %u at %u\n",
+  DPRINTF("Add Dependence from persistent event %u to EDT %u at %u\n",
          eventSource, edtDest, edtSlot);
   struct artsPersistentEvent *event =
       (struct artsPersistentEvent *)sourceHeader;
@@ -668,7 +679,6 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
     struct artsDependentList *dependentList = &version->dependent;
     unsigned int position = artsAtomicFetchAdd(&version->dependentCount, 1U);
     struct artsDependent *dependent = artsDependentGet(dependentList, position);
-    PRINTF("Adding dependent %u\n", position);
     assert(dependent != NULL);
     dependent->type = ARTS_EDT;
     dependent->addr = edtDest;
@@ -677,7 +687,6 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
     dependent->doneWriting = true;
 
     unsigned int res = artsAtomicFetchAdd(&version->latchCount, 0U);
-    PRINTF(" - Latch count: %u\n", res);
     if (res == 0) {
       artsPersistentEventSatisfy(eventSource, dataGuid, ARTS_EVENT_UPDATE);
     }

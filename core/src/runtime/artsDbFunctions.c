@@ -495,7 +495,9 @@ void acquireDbs(struct artsEdt *edt) {
 
       if (dbFound) {
         depv[i].ptr = dbFound + 1;
-        PRINTF("DB found: %f\n", *(float *)depv[i].ptr);
+        printf("DB %u found %lf - typeName:%s (%u)\n", (unsigned)depv[i].guid,
+               *((double *)depv[i].ptr), getTypeName(depv[i].mode),
+               depv[i].mode);
         // PRINTF("Setting[%u]: %p %s - %d\n", i, depv[i].ptr,
         //        getTypeName(depv[i].mode), *((int *)depv[i].ptr));
       }
@@ -504,7 +506,7 @@ void acquireDbs(struct artsEdt *edt) {
       artsAtomicSub(&edt->depcNeeded, 1U);
     }
   }
-  PRINTF("EDT has finished acquiring DBs %u\n", edt->currentEdt);
+  PRINTF("EDT %u has finished acquiring DBs\n", edt->currentEdt);
 }
 
 void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {

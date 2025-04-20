@@ -155,14 +155,28 @@ extern uint64_t artsGuidMax;
 #define artsLookUpConfig(name) artsNodeInfo.name
 
 #define artsTypeName                                                           \
-  const char *const _artsTypeName[] = {                                        \
-      "ARTS_NULL",        "ARTS_EDT",           "ARTS_GPU_EDT",                \
-      "ARTS_EVENT",       "ARTS_EPOCH",         "ARTS_CALLBACK",               \
-      "ARTS_BUFFER",      "ARTS_DB_READ",       "ARTS_DB_WRITE",               \
-      "ARTS_DB_PIN",      "ARTS_DB_ONCE",       "ARTS_DB_ONCE_LOCAL",          \
-      "ARTS_DB_GPU_READ", "ARTS_DB_GPU_WRITE",  "ARTS_DB_LC",                  \
-      "ARTS_LAST_TYPE",   "ARTS_SINGLE_VALUE",  "ARTS_PTR",                    \
-      "ARTS_DB_LC_SYNC",  "ARTS_DB_LC_NO_COPY", "ARTS_DB_GPU_MEMSET"}
+  const char *const _artsTypeName[] = {"ARTS_NULL",                            \
+                                       "ARTS_EDT",                             \
+                                       "ARTS_GPU_EDT",                         \
+                                       "ARTS_EVENT",                           \
+                                       "ARTS_PERSISTENT_EVENT",                \
+                                       "ARTS_EPOCH",                           \
+                                       "ARTS_CALLBACK",                        \
+                                       "ARTS_BUFFER",                          \
+                                       "ARTS_DB_READ",                         \
+                                       "ARTS_DB_WRITE",                        \
+                                       "ARTS_DB_PIN",                          \
+                                       "ARTS_DB_ONCE",                         \
+                                       "ARTS_DB_ONCE_LOCAL",                   \
+                                       "ARTS_DB_GPU_READ",                     \
+                                       "ARTS_DB_GPU_WRITE",                    \
+                                       "ARTS_DB_LC",                           \
+                                       "ARTS_LAST_TYPE",                       \
+                                       "ARTS_SINGLE_VALUE",                    \
+                                       "ARTS_PTR",                             \
+                                       "ARTS_DB_LC_SYNC",                      \
+                                       "ARTS_DB_LC_NO_COPY",                   \
+                                       "ARTS_DB_GPU_MEMSET"}
 
 #define getTypeName(x) _artsTypeName[x]
 
