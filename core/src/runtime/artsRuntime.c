@@ -444,7 +444,7 @@ inline struct artsEdt *artsRuntimeStealFromNetwork() {
     unsigned int index = artsThreadInfo.threadId;
     for (unsigned int i = 0; i < artsNodeInfo.receiverThreadCount; i++) {
       index = (index + 1) % artsNodeInfo.receiverThreadCount;
-      if (edt = artsDequePopBack(artsNodeInfo.receiverDeque[index]))
+      if ((edt = artsDequePopBack(artsNodeInfo.receiverDeque[index])))
         break;
     }
   }

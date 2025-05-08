@@ -669,7 +669,7 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
   }
 
   DPRINTF("Add Dependence from persistent event %u to EDT %u at %u\n",
-         eventSource, edtDest, edtSlot);
+          eventSource, edtDest, edtSlot);
   struct artsPersistentEvent *event =
       (struct artsPersistentEvent *)sourceHeader;
   struct artsPersistentEventVersion *version =

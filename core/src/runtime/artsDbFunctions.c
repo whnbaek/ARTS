@@ -495,9 +495,8 @@ void acquireDbs(struct artsEdt *edt) {
 
       if (dbFound) {
         depv[i].ptr = dbFound + 1;
-        printf("DB %u found %lf - typeName:%s (%u)\n", (unsigned)depv[i].guid,
-               *((double *)depv[i].ptr), getTypeName(depv[i].mode),
-               depv[i].mode);
+        // printf("DB %u found %6.2f - typeName:%s\n", (unsigned)depv[i].guid,
+        //        *((float *)depv[i].ptr), getTypeName(depv[i].mode));
         // PRINTF("Setting[%u]: %p %s - %d\n", i, depv[i].ptr,
         //        getTypeName(depv[i].mode), *((int *)depv[i].ptr));
       }
