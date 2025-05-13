@@ -36,56 +36,41 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#ifndef ARTSEDTFUNCTIONS_H
+#define ARTSEDTFUNCTIONS_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+bool artsEdtCreateInternal(struct artsEdt *edt, artsType_t mode,
+                           artsGuid_t *guid, unsigned int route,
+                           unsigned int cluster, unsigned int edtSpace,
+                           artsGuid_t eventGuid, artsEdt_t funcPtr,
+                           uint32_t paramc, uint64_t *paramv, uint32_t depc,
+                           bool useEpoch, artsGuid_t epochGuid, bool hasDepv);
+void artsEdtDelete(struct artsEdt *edt);
+void internalSignalEdt(artsGuid_t edtPacket, uint32_t slot, artsGuid_t dataGuid,
+                       artsType_t mode, void *ptr, unsigned int size);
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+typedef struct {
+  artsGuid_t currentEdtGuid;
+  struct artsEdt *currentEdt;
+  void *epochList;
+} threadLocal_t;
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+void artsSetThreadLocalEdtInfo(struct artsEdt *edt);
+void artsUnsetThreadLocalEdtInfo();
+void artsSaveThreadLocal(threadLocal_t *tl);
+void artsRestoreThreadLocal(threadLocal_t *tl);
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+bool artsSetCurrentEpochGuid(artsGuid_t epochGuid);
+artsGuid_t *artsCheckEpochIsRoot(artsGuid_t toCheck);
+void artsIncrementFinishedEpochList();
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+void *artsGetDepv(void *edtPtr);
+#ifdef __cplusplus
 }
+#endif
+
+#endif

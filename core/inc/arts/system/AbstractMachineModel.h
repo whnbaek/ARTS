@@ -36,56 +36,77 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+
+#ifndef ARTSABSTRACTMACHINEMODEL_H
+#define ARTSABSTRACTMACHINEMODEL_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
 #include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#include <assert.h>
 
-extern struct artsConfig *config;
+struct artsCoreInfo;
+struct unitThread {
+  unsigned int id;
+  unsigned int groupId;
+  unsigned int groupPos;
+  bool worker;
+  bool networkSend;
+  bool networkReceive;
+  bool statusSend;
+  bool pin;
+  struct unitThread *next;
+};
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+struct threadMask {
+  unsigned int clusterId;
+  unsigned int coreId;
+  unsigned int unitId;
+  bool on;
+  unsigned int id;
+  unsigned int groupId;
+  unsigned int groupPos;
+  bool worker;
+  bool networkSend;
+  bool networkReceive;
+  bool statusSend;
+  bool pin;
+  struct artsCoreInfo *coreInfo;
+};
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+struct unitMask {
+  unsigned int clusterId;
+  unsigned int coreId;
+  unsigned int unitId;
+  bool on;
+  unsigned int threads;
+  struct unitThread *listHead;
+  struct unitThread *listTail;
+  struct artsCoreInfo *coreInfo;
+};
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+struct coreMask {
+  unsigned int numUnits;
+  struct unitMask *unit;
+};
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+struct clusterMask {
+  unsigned int numCores;
+  struct coreMask *core;
+};
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+struct nodeMask {
+  unsigned int numClusters;
+  struct clusterMask *cluster;
+};
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+struct threadMask *getThreadMask(struct artsConfig *config);
+void printMask(struct threadMask *units, unsigned int numberOfUnits);
+void artsAbstractMachineModelPinThread(struct artsCoreInfo *coreInfo);
 
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* artsABSTRACTMACHINEMODEL_H */

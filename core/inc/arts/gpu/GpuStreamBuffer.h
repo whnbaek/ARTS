@@ -36,56 +36,78 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#ifndef ARTSGPUSTREAMBUFFER_H
+#define ARTSGPUSTREAMBUFFER_H
 
-extern struct artsConfig *config;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+#include "arts/gpu/GpuLCSyncFunctions.h"
+#include "arts/runtime/RT.h"
+#include <cuda_runtime.h>
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+typedef struct {
+  void *dst;
+  void *src;
+  size_t count;
+} artsBufferMemMove_t;
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+typedef struct {
+  uint32_t paramc;
+  uint64_t *paramv;
+  uint32_t depc;
+  artsEdtDep_t *depv;
+  artsEdt_t fnPtr;
+  unsigned int grid[3];
+  unsigned int block[3];
+} artsBufferKernel_t;
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+// CHECKCORRECT(cudaMemcpyAsync(dataPtr, depv[i].ptr, size,
+// cudaMemcpyHostToDevice, artsGpu->stream));
+bool pushDataToStream(unsigned int gpuId, void *dst, void *src, size_t count,
+                      bool buff);
+bool getDataFromStream(unsigned int gpuId, void *dst, void *src, size_t count,
+                       bool buff);
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+//  void * kernelArgs[] = { &paramc, &devParamv, &depc, &devDepv };
+// CHECKCORRECT(cudaLaunchKernel((const void *)fnPtr, grid, block,
+// (void**)kernelArgs, (size_t)0, artsGpu->stream));
+bool pushKernelToStream(unsigned int gpuId, uint32_t paramc, uint64_t *paramv,
+                        uint32_t depc, artsEdtDep_t *depv, artsEdt_t fnPtr,
+                        dim3 grid, dim3 block, bool buff);
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+// #if CUDART_VERSION >= 10000
+//     CHECKCORRECT(cudaLaunchHostFunc(artsGpu->stream, artsWrapUp,
+//     hostClosure));
+// #else
+//     CHECKCORRECT(cudaStreamAddCallback(artsGpu->stream, artsWrapUp,
+//     hostClosure, 0));
+// #endif
+bool pushWrapUpToStream(unsigned int gpuId, void *hostClosure, bool buff);
 
-  artsThreadMainJoin();
+bool flushMemStream(unsigned int gpuId, unsigned int *count,
+                    artsBufferMemMove_t *buff, enum cudaMemcpyKind kind);
+bool flushKernelStream(unsigned int gpuId);
+bool flushWrapUpStream(unsigned int gpuId);
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+bool flushStream(unsigned int gpuId);
+bool checkStreams(bool buffOn);
+
+void reduceDatafromGpus(void *dst, unsigned int dstGpuId, void *src,
+                        unsigned int srcGpuId, unsigned int size,
+                        artsLCSyncFunctionGpu_t fnPtr, unsigned int elementSize,
+                        void *dbData);
+void getDataFromStreamNow(unsigned int gpuId, void *dst, void *src,
+                          size_t count, bool buff);
+void copyGputoGpu(void *dst, unsigned int dstGpuId, void *src,
+                  unsigned int srcGpuId, unsigned int size);
+void doReductionNow(unsigned int gpuId, void *sink, void *src,
+                    artsLCSyncFunctionGpu_t fnPtr, unsigned int elementSize,
+                    unsigned int size);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* ARTSGPUSTREAMBUFFER_H */

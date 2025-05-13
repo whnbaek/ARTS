@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,*
+** implied, or assumes any legal liability or responsibility for the accuracy,* 
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -36,56 +36,35 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+/*
+ * artsTMT
+ *
+ *  Created on: March 30, 2018
+ *      Author: Andres Marquez (@awmm)
+ *
+ *
+ * This file is subject to the license agreement located in the file LICENSE
+ * and cannot be distributed without it. This notice cannot be
+ * removed or modified.
+ *
+ *
+ *
+ */
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+#ifndef ARTSTMTLITE_H_
+#define ARTSTMTLITE_H_
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+#include <stdint.h>
+void artsInitTMTLitePerNode(unsigned int numWorkers);
+void artsInitTMTLitePerWorker(unsigned int id);
+void artsTMTLiteShutdown();
+void artsTMTLitePrivateCleanUp(unsigned int id);
+void artsCreateLiteContexts(volatile uint64_t * toDec);
+void artsYieldLiteContext();
+void artsResumeLiteContext();
+unsigned int artsTMTLiteGetAlias();
+void artsCreateLiteContexts2(volatile uint64_t * toDec, struct artsEdt * edt);
+void artsTMTSchedulerYield();
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
-}
+#endif /* ARTSTMTLITE_H_ */

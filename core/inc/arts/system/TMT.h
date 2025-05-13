@@ -36,56 +36,88 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+
+/*
+ * artsTMT
+ *
+ *  Created on: March 30, 2018
+ *      Author: Andres Marquez (@awmm)
+ *
+ *
+ * This file is subject to the license agreement located in the file LICENSE
+ * and cannot be distributed without it. This notice cannot be
+ * removed or modified.
+ *
+ *
+ *
+ */
+
+#ifndef CORE_INC_ARTS_TMT_H_
+#define CORE_INC_ARTS_TMT_H_
+
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
+#include "arts/system/AbstractMachineModel.h"
 #include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#include "arts/runtime/Runtime.h"
+#include "arts/utils/Queue.h"
+#include <semaphore.h>
 
-extern struct artsConfig *config;
+#define MAX_TOTAL_THREADS_PER_MAX 65536
+#define MAX_THREADS_PER_MASTER 64
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+typedef uint64_t accst_t; // accessor state
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+typedef union {
+  uint64_t bits : 64;
+  struct __attribute__((packed)) {
+    uint32_t rank : 31;
+    uint16_t unit : 16;
+    uint16_t thread : 16;
+    uint8_t valid : 1;
+  } fields;
+} artsTicket;
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+typedef struct internalMsi {
+  pthread_t *aliasThreads;
+  sem_t *sem;
+  volatile bool **alive;
+  volatile bool **initShutdown;
+  volatile unsigned int
+      ticket_counter[MAX_THREADS_PER_MASTER]; // Fixed counters used to keep
+                                              // track of outstanding promises
+                                              // (we can only wait on one
+                                              // context at a time)
+  volatile accst_t alias_running; // FIXME: right data structure?
+  volatile accst_t alias_avail;
+  volatile unsigned int startUpCount;
+  volatile unsigned int shutDownCount;
+  struct internalMsi *next;
+} internalMsi_t;
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+typedef struct msi {
+  internalMsi_t *head;
+  volatile unsigned int blocked;
+  volatile unsigned int total;
+  volatile unsigned int wakeUpNext;
+  artsQueue *wakeQueue;
+} msi_t __attribute__((aligned(64))); // master shared info
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+typedef struct {
+  uint32_t aliasId;                    // alias id
+  struct artsRuntimePrivate *tlToCopy; // we copy the master thread's TL
+  internalMsi_t *localInternal;
+  sem_t *startUpSem;
+} tmask_t; // per alias thread info
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+// RTS internal interface
+void artsTMTNodeInit(unsigned int numThreads);
+void artsTMTRuntimePrivateInit(struct threadMask *unit,
+                               struct artsRuntimePrivate *semiPrivate);
+void artsTMTRuntimePrivateCleanup();
+bool artsTMTRuntimeStop();
 
-  artsThreadMainJoin();
+bool artsAvailContext();
+void artsNextContext();
+void artsWakeUpContext();
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
-}
+#endif /* CORE_INC_ARTS_TMT_H_ */

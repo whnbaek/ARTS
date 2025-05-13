@@ -37,55 +37,115 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 #define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
 #include "arts/arts.h"
 #include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
+#include "arts/introspection/Counter.h"
 #include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/Runtime.h"
 #include "arts/system/Config.h"
-#include "arts/system/Debug.h"
+#include "arts/system/TMT.h"
 #include "arts/system/Threads.h"
+#include "limits.h"
+#include <pthread.h>
+#include <unistd.h>
 
-extern struct artsConfig *config;
+unsigned int artsGlobalRankId;
+unsigned int artsGlobalRankCount;
+unsigned int artsGlobalMasterRankId;
+struct artsConfig *gConfig;
+struct artsConfig *config;
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+pthread_t *nodeThreadList;
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+void *artsThreadLoop(void *data) {
+  struct threadMask *unit = (struct threadMask *)data;
+  if (unit->pin)
+    artsAbstractMachineModelPinThread(unit->coreInfo);
+  artsRuntimePrivateInit(unit, gConfig);
+  artsRuntimeLoop();
+  artsRuntimePrivateCleanup();
+  return NULL;
+  // pthread_exit(NULL);
+}
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+void artsThreadMainJoin() {
+  artsRuntimeLoop();
+  artsRuntimePrivateCleanup();
+  int i;
+  for (i = 1; i < artsNodeInfo.totalThreadCount; i++)
+    pthread_join(nodeThreadList[i], NULL);
+  artsRuntimeGlobalCleanup();
+  // artsFree(args);
+  artsFree(nodeThreadList);
+}
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+void artsThreadInit(struct artsConfig *config) {
+  gConfig = config;
+  struct threadMask *mask = getThreadMask(config);
+  nodeThreadList =
+      artsMalloc(sizeof(pthread_t) * artsNodeInfo.totalThreadCount);
+  unsigned int i = 0, threadCount = artsNodeInfo.totalThreadCount;
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
+  if (config->stackSize) {
+    void *stack;
+    pthread_attr_t attr;
+    long pageSize = sysconf(_SC_PAGESIZE);
+    size_t size =
+        ((config->stackSize % pageSize > 0) + (config->stackSize / pageSize)) *
+        pageSize;
+    for (i = 1; i < threadCount; i++) {
+      pthread_attr_init(&attr);
+      pthread_attr_setstacksize(&attr, size);
+      pthread_create(&nodeThreadList[i], &attr, &artsThreadLoop, &mask[i]);
+    }
+  } else {
+    for (i = 1; i < threadCount; i++)
+      pthread_create(&nodeThreadList[i], NULL, &artsThreadLoop, &mask[i]);
   }
+  if (mask->pin)
+    artsAbstractMachineModelPinThread(mask->coreInfo);
+  artsRuntimePrivateInit(&mask[0], config);
+}
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+void artsShutdown() {
+  if (artsGlobalRankCount > 1)
+    artsRemoteShutdown();
 
-  artsThreadMainJoin();
+  if (artsGlobalRankCount == 1)
+    artsRuntimeStop();
+}
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
+void artsThreadSetOsThreadCount(unsigned int threads) {
+  pthread_setconcurrency(threads);
+}
+
+void artsPthreadAffinity(unsigned int cpuCoreId, bool verbose) {
+  cpu_set_t cpuset;
+  pthread_t thread;
+  thread = pthread_self();
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpuCoreId, &cpuset);
+  if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) && verbose)
+    PRINTF("Failed to set affinity %u\n", cpuCoreId);
+}
+
+int *artsValidPthreadAffinity(unsigned int *size) {
+  unsigned int count = 0;
+  cpu_set_t cpuset;
+  pthread_t thread = pthread_self();
+
+  int *affin = (int *)artsMalloc(sizeof(int) * CPU_SETSIZE);
+  for (int i = 0; i < CPU_SETSIZE; i++) {
+    CPU_ZERO(&cpuset);
+    CPU_SET(i, &cpuset);
+    if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset))
+      affin[i] = -1;
+    else {
+      affin[i] = i;
+      count++;
+    }
   }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+  *size = count;
+  return affin;
 }

@@ -36,56 +36,58 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#ifndef ARTSGPULCSYNCFUNCTIONS_H
+#define ARTSGPULCSYNCFUNCTIONS_H
+#include <device_types.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "arts/runtime/RT.h"
 
-extern struct artsConfig *config;
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+typedef struct {
+  uint64_t guid;
+  void *data;
+  uint64_t dataSize;
+  volatile unsigned int *hostVersion;
+  unsigned int *hostTimeStamp;
+  unsigned int gpuVersion;
+  unsigned int gpuTimeStamp;
+  int gpu;
+  volatile unsigned int *readLock;
+  volatile unsigned int *writeLock;
+} artsLCMeta_t;
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+typedef void (*artsLCSyncFunction_t)(artsLCMeta_t *host, artsLCMeta_t *dev);
+extern artsLCSyncFunction_t lcSyncFunction[];
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+typedef void (*artsLCSyncFunctionGpu_t)(struct artsDb *src, struct artsDb *dst);
+extern artsLCSyncFunctionGpu_t lcSyncFunctionGpu[];
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+extern unsigned int lcSyncElementSize[];
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+void *makeLCShadowCopy(struct artsDb *db);
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+void artsMemcpyGpuDb(artsLCMeta_t *host, artsLCMeta_t *dev);
+void artsGetLatestGpuDb(artsLCMeta_t *host, artsLCMeta_t *dev);
+void artsGetRandomGpuDb(artsLCMeta_t *host, artsLCMeta_t *dev);
+void artsGetNonZerosUnsignedInt(artsLCMeta_t *host, artsLCMeta_t *dev);
+void artsGetMinDbUnsignedInt(artsLCMeta_t *host, artsLCMeta_t *dev);
+void artsAddDbUnsignedInt(artsLCMeta_t *host, artsLCMeta_t *dev);
+void artsXorDbUint64(artsLCMeta_t *host, artsLCMeta_t *dev);
 
-  artsThreadMainJoin();
+unsigned int gpuLCReduce(artsGuid_t guid, struct artsDb *db,
+                         artsLCSyncFunctionGpu_t dbFn, bool *copyOnly);
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+__global__ void artsCopyGpuDb(struct artsDb *src, struct artsDb *dst);
+__global__ void artsMinGpuDbUnsignedInt(struct artsDb *src, struct artsDb *dst);
+__global__ void artsNonZeroGpuDbUnsignedInt(struct artsDb *src,
+                                            struct artsDb *dst);
+__global__ void artsAddGpuDbUnsignedInt(struct artsDb *src, struct artsDb *dst);
+__global__ void artsXorGpuDbUint64(struct artsDb *sink, struct artsDb *src);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif

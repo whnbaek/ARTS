@@ -36,56 +36,95 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#ifndef ARTSCONFIG_H
+#define ARTSCONFIG_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
 #include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+struct artsConfigTable {
+  unsigned int rank;
+  char *ipAddress;
+};
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+struct artsConfigVariable {
+  unsigned int size;
+  struct artsConfigVariable *next;
+  char variable[255];
+  char value[];
+};
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+struct artsConfig {
+  unsigned int myRank;
+  char *masterNode;
+  char *myIPAddress;
+  char *netInterface;
+  char *protocol;
+  char *launcher;
+  unsigned int ports;
+  unsigned int osThreadCount;
+  unsigned int threadCount;
+  unsigned int coreCount;
+  unsigned int recieverCount;
+  unsigned int senderCount;
+  unsigned int socketCount;
+  unsigned int nodes;
+  unsigned int masterRank;
+  unsigned int port;
+  unsigned int killMode;
+  unsigned int routeTableSize;
+  unsigned int routeTableEntries;
+  unsigned int dequeSize;
+  unsigned int introspectiveTraceLevel;
+  unsigned int introspectiveStartPoint;
+  unsigned int counterStartPoint;
+  unsigned int printNodeStats;
+  unsigned int scheduler;
+  unsigned int shutdownEpoch;
+  char *prefix;
+  char *suffix;
+  bool ibNames;
+  bool masterBoot;
+  bool coreDump;
+  unsigned int pinStride;
+  bool printTopology;
+  bool pinThreads;
+  unsigned int firstEdt;
+  unsigned int shadLoopStride;
+  uint64_t stackSize;
+  struct artsRemoteLauncher *launcherData;
+  char *introspectiveFolder;
+  char *introspectiveConf;
+  char *counterFolder;
+  unsigned int tableLength;
+  unsigned int
+      tMT; // @awmm temporal MT; # of MT aliases per core thread; 0 if disabled
+  unsigned int coresPerNetworkThread;
+  unsigned int gpu;
+  unsigned int gpuLocality;
+  unsigned int gpuFit;
+  unsigned int gpuLCSync;
+  unsigned int gpuMaxEdts;
+  uint64_t gpuMaxMemory;
+  bool gpuP2P;
+  bool gpuBuffOn;
+  unsigned int gpuRouteTableSize;
+  unsigned int gpuRouteTableEntries;
+  bool freeDbAfterGpuRun;
+  bool runGpuGcPreEdt;
+  bool runGpuGcIdle;
+  bool deleteZerosGpuGc;
+  struct artsConfigTable *table;
+};
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+struct artsConfig *artsConfigLoad();
+void artsConfigDestroy(void *config);
+unsigned int artsConfigGetNumberOfThreads(char *location);
+#ifdef __cplusplus
 }
+#endif
+
+#endif

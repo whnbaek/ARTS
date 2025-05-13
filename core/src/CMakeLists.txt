@@ -58,25 +58,39 @@ set(main_src
     artsUtil.c
 )
 
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/system
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/gas
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/gpu
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/introspection
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/network
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/compute
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/memory
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/server
+    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/sync
+)
+
 if(CUDA_FOUND)
-    add_library(arts STATIC ${main_inc} ${main_src} 
-                    $<TARGET_OBJECTS:gas> 
-                    $<TARGET_OBJECTS:network> 
-                    $<TARGET_OBJECTS:introspection> 
-                    $<TARGET_OBJECTS:runtime> 
-                    $<TARGET_OBJECTS:system> 
-                    $<TARGET_OBJECTS:common>
-                    $<TARGET_OBJECTS:gpu>
-                )
-    add_library(carts SHARED ${main_inc} ${main_src} 
-                    $<TARGET_OBJECTS:gas> 
-                    $<TARGET_OBJECTS:network> 
-                    $<TARGET_OBJECTS:introspection> 
-                    $<TARGET_OBJECTS:runtime> 
-                    $<TARGET_OBJECTS:system> 
-                    $<TARGET_OBJECTS:common>
-                    $<TARGET_OBJECTS:gpu>
-                )
+    add_library(arts STATIC ${main_inc} ${main_src}
+        $<TARGET_OBJECTS:gas>
+        $<TARGET_OBJECTS:network>
+        $<TARGET_OBJECTS:introspection>
+        $<TARGET_OBJECTS:runtime>
+        $<TARGET_OBJECTS:system>
+        $<TARGET_OBJECTS:common>
+        $<TARGET_OBJECTS:gpu>
+    )
+    add_library(carts SHARED ${main_inc} ${main_src}
+        $<TARGET_OBJECTS:gas>
+        $<TARGET_OBJECTS:network>
+        $<TARGET_OBJECTS:introspection>
+        $<TARGET_OBJECTS:runtime>
+        $<TARGET_OBJECTS:system>
+        $<TARGET_OBJECTS:common>
+        $<TARGET_OBJECTS:gpu>
+    )
 else()
     # add_library(arts STATIC ${main_inc} ${main_src} 
     #                 $<TARGET_OBJECTS:gas> 
@@ -86,12 +100,12 @@ else()
     #                 $<TARGET_OBJECTS:system> 
     #                 $<TARGET_OBJECTS:common>
     #             )
-    add_library(arts SHARED ${main_inc} ${main_src} 
-        $<TARGET_OBJECTS:gas> 
-        $<TARGET_OBJECTS:network> 
-        $<TARGET_OBJECTS:introspection> 
-        $<TARGET_OBJECTS:runtime> 
-        $<TARGET_OBJECTS:system> 
+    add_library(arts SHARED ${main_inc} ${main_src}
+        $<TARGET_OBJECTS:gas>
+        $<TARGET_OBJECTS:network>
+        $<TARGET_OBJECTS:introspection>
+        $<TARGET_OBJECTS:runtime>
+        $<TARGET_OBJECTS:system>
         $<TARGET_OBJECTS:common>
     )
     message("PATHS INSTALLED: " ${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB})

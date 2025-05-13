@@ -36,56 +36,45 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+
+#include "sys/socket.h"
+#include "arpa/inet.h"
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#include "arts/network/Connection.h"
+#include "netinet/tcp.h"
+#include "string.h"
+#include <fcntl.h>
+#define DPRINTF(...)
 
-extern struct artsConfig *config;
+void artsPrintSocketAddr(struct sockaddr_in *sock) {
+  // char crap[255];
+  char *addr = inet_ntoa(sock->sin_addr);
+  if (addr != NULL)
+    DPRINTF("socket addr %s\n", addr);
+}
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+unsigned int artsGetNewSocket() {
+  unsigned int socketOut = rsocket(PF_INET, SOCK_STREAM, 0);
+  return socketOut;
+}
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+unsigned int artsGetSocketListening(struct sockaddr_in *listeningSocket,
+                                    unsigned int port) {
+  memset((char *)listeningSocket, 0, sizeof(*listeningSocket));
+  unsigned int socketOut = rsocket(PF_INET, SOCK_STREAM, 0);
+  listeningSocket->sin_family = AF_INET;
+  listeningSocket->sin_addr.s_addr = htonl(INADDR_ANY);
+  listeningSocket->sin_port = htons(port);
+  return socketOut;
+}
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+unsigned int artsGetSocketOutgoing(struct sockaddr_in *outgoingSocket,
+                                   unsigned int port, in_addr_t saddr) {
+  memset((char *)outgoingSocket, 0, sizeof(*outgoingSocket));
+  unsigned int socketOut = rsocket(PF_INET, SOCK_STREAM, 0);
+  outgoingSocket->sin_family = AF_INET;
+  outgoingSocket->sin_addr.s_addr = saddr;
+  outgoingSocket->sin_port = htons(port);
+  artsPrintSocketAddr(outgoingSocket);
+  return socketOut;
 }

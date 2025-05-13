@@ -36,56 +36,60 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#ifndef ARTSATOMICS_H
+#define ARTSATOMICS_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-extern struct artsConfig *config;
+#include "arts/runtime/RT.h"
+#define HW_MEMORY_FENCE() __sync_synchronize()
+#define COMPILER_DO_NOT_REORDER_WRITES_BETWEEN_THIS_POINT()                    \
+  __asm__ volatile("" : : : "memory")
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+unsigned int artsAtomicSwap(volatile unsigned int *destination,
+                            unsigned int swapIn);
+uint64_t artsAtomicSwapU64(volatile uint64_t *destination, uint64_t swapIn);
+volatile void *artsAtomicSwapPtr(volatile void **destination, void *swapIn);
+unsigned int artsAtomicSub(volatile unsigned int *destination,
+                           unsigned int subVal);
+unsigned int artsAtomicAdd(volatile unsigned int *destination,
+                           unsigned int addVal);
+unsigned int artsAtomicFetchAdd(volatile unsigned int *destination,
+                                unsigned int addVal);
+unsigned int artsAtomicCswap(volatile unsigned int *destination,
+                             unsigned int oldVal, unsigned int swapIn);
+uint64_t artsAtomicCswapU64(volatile uint64_t *destination, uint64_t oldVal,
+                            uint64_t swapIn);
+volatile void *artsAtomicCswapPtr(volatile void **destination, void *oldVal,
+                                  void *swapIn);
+bool artsAtomicSwapBool(volatile bool *destination, bool value);
+uint64_t artsAtomicFetchAddU64(volatile uint64_t *destination, uint64_t addVal);
+uint64_t artsAtomicFetchSubU64(volatile uint64_t *destination, uint64_t subVal);
+uint64_t artsAtomicAddU64(volatile uint64_t *destination, uint64_t addVal);
+uint64_t artsAtomicSubU64(volatile uint64_t *destination, uint64_t subVal);
+bool artsLock(volatile unsigned int *lock);
+void artsUnlock(volatile unsigned int *lock);
+bool artsTryLock(volatile unsigned int *lock);
+uint64_t artsAtomicFetchAndU64(volatile uint64_t *destination, uint64_t addVal);
+uint64_t artsAtomicFetchOrU64(volatile uint64_t *destination, uint64_t addVal);
+uint64_t artsAtomicFetchXOrU64(volatile uint64_t *destination,
+                               uint64_t addVal); //@awmm
+unsigned int artsAtomicFetchOr(volatile unsigned int *destination,
+                               unsigned int addVal);
+unsigned int artsAtomicFetchAnd(volatile unsigned int *destination,
+                                unsigned int addVal);
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
-
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+void artsReaderLock(volatile unsigned int *readLock,
+                    volatile unsigned int *writeLock);
+void artsReaderUnlock(volatile unsigned int *readLock);
+void artsWriterLock(volatile unsigned int *readLock,
+                    volatile unsigned int *writeLock);
+bool artsWriterTryLock(volatile unsigned int *readLock,
+                       volatile unsigned int *writeLock);
+void artsWriterUnlock(volatile unsigned int *writeLock);
+#ifdef __cplusplus
 }
+#endif
+
+#endif

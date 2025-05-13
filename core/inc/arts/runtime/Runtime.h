@@ -36,56 +36,66 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#ifndef ARTSRUNTIME_H
+#define ARTSRUNTIME_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "arts/system/AbstractMachineModel.h"
 
-extern struct artsConfig *config;
+#define NODEDEQUESIZE 8
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+enum artsInitType {
+  artsWorkerThread,
+  artsReceiverThread,
+  artsRemoteStealThread,
+  artsCounterThread,
+  artsOtherThread
+};
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+void artsRuntimeNodeInit(unsigned int workerThreads,
+                         unsigned int receivingThreads,
+                         unsigned int senderThreads,
+                         unsigned int receiverThreads,
+                         unsigned int totalThreads, bool remoteStealingOn,
+                         struct artsConfig *config);
+void artsRuntimeGlobalCleanup();
+void artsRuntimePrivateCleanup();
+void artsRuntimeStop();
+void artsHandleReadyEdt(struct artsEdt *edt);
+void artsRehandleReadyEdt(struct artsEdt *edt);
+void artsHandleRemoteStolenEdt(struct artsEdt *edt);
+bool artsRuntimeSchedulerLoop();
+void artsThreadZeroNodeStart();
+void artsThreadZeroPrivateInit(struct threadMask *unit,
+                               struct artsConfig *config);
+void artsRuntimePrivateInit(struct threadMask *unit, struct artsConfig *config);
+int artsRuntimeLoop();
+int artsRuntimeSchedulerLoopWait(volatile bool *waitForMe);
+bool artsDefaultSchedulerLoop();
+void artsRunEdt(void *edtPacket);
+struct artsEdt *artsFindEdt();
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+bool artsRuntimeEdtLockDb(artsGuid_t dbGuid, struct artsDb *db, void *edtPacket,
+                          bool shared);
+void artsRuntimeEdtLockDbSignalNext(struct artsDb *db, artsGuid_t dbGuid,
+                                    bool remote);
+struct artsEdt *artsRuntimeStealFromWorker();
+struct artsEdt *artsRuntimeStealFromNetwork();
+void artsDbUnlock(struct artsDb *db, artsGuid_t dbGuid, bool write);
+bool artsDbLockAllDbs(struct artsEdt *edt);
+bool artsDbLock(artsGuid_t dbGuid, void *edtPacket, unsigned int rank,
+                bool shared);
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+bool artsNetworkFirstSchedulerLoop();
+bool artsNetworkBeforeStealSchedulerLoop();
+bool artsDefaultSchedulerLoop();
+bool artsGpuSchedulerLoop();
+bool artsGpuSchedulerBackoffLoop();
+bool artsGpuSchedulerDemandLoop();
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+
+#endif

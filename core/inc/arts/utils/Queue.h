@@ -36,56 +36,76 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+
+// Original copyright
+// Copyright (c) 2013, Adam Morrison and Yehuda Afek.
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in
+//    the documentation and/or other materials provided with the
+//    distribution.
+//  * Neither the name of the Tel Aviv University nor the names of the
+//    author of this software may be used to endorse or promote products
+//    derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#ifndef ARTSQUEUE_H
+#define ARTSQUEUE_H
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+#define Object uint64_t
+#define RING_POW (6)
+#define RING_SIZE (1ull << RING_POW)
+#define ALIGNMENT 8
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+typedef struct RingNode {
+  volatile uint64_t val;
+  volatile uint64_t idx;
+  uint64_t pad[14];
+} RingNode __attribute__((aligned(128)));
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+typedef struct RingQueue {
+  volatile int64_t head __attribute__((aligned(128)));
+  volatile int64_t tail __attribute__((aligned(128)));
+  struct RingQueue *next __attribute__((aligned(128)));
+  RingNode array[RING_SIZE];
+} RingQueue __attribute__((aligned(128)));
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+typedef struct artsQueue {
+  RingQueue *head;
+  RingQueue *tail;
+} artsQueue __attribute__((aligned(128)));
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+artsQueue *artsNewQueue();
+void enqueue(Object arg, artsQueue *queue);
+Object dequeue(artsQueue *queue);
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+int close_crq(RingQueue *rq, const uint64_t t, const int tries);
+uint64_t node_index(uint64_t i) __attribute__((pure));
+void fixState(RingQueue *rq);
+uint64_t set_unsafe(uint64_t i) __attribute__((pure));
+int is_empty(uint64_t v) __attribute__((pure));
+uint64_t node_unsafe(uint64_t i) __attribute__((pure));
+int crq_is_closed(uint64_t t) __attribute__((pure));
+void init_ring(RingQueue *r);
+uint64_t tail_index(uint64_t t) __attribute__((pure));
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
-}
+#endif /* artsQUEUE_H */

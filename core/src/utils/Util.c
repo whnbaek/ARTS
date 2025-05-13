@@ -36,56 +36,64 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
 #include "arts/arts.h"
 #include "arts/gas/Guid.h"
+#include "arts/gas/OutOfOrder.h"
+#include "arts/gas/RouteTable.h"
+#include "arts/introspection/Counter.h"
 #include "arts/introspection/Introspection.h"
 #include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
+#include "arts/runtime/compute/EdtFunctions.h"
+#include "arts/runtime/memory/DbFunctions.h"
+#include "arts/runtime/network/RemoteFunctions.h"
 #include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#include "arts/utils/Atomics.h"
+#include <fcntl.h>
+#include <inttypes.h>
+#include <stdarg.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-extern struct artsConfig *config;
+#define DPRINTF(...)
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+extern __thread struct artsEdt *currentEdt;
+extern unsigned int numNumaDomains;
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+inline artsGuid_t artsGetGuidFromEdtDep(artsEdtDep_t dep) { return dep.guid; }
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+inline void *artsGetPtrFromEdtDep(artsEdtDep_t dep) { return dep.ptr; }
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
+artsGuid_t artsGetCurrentGuid() {
+  if (currentEdt) {
+    return currentEdt->currentEdt;
   }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+  return NULL_GUID;
 }
+
+unsigned int artsGetCurrentNode() { return artsGlobalRankId; }
+
+unsigned int artsGetTotalNodes() { return artsGlobalRankCount; }
+
+unsigned int artsGetTotalWorkers() { return artsNodeInfo.workerThreadCount; }
+
+unsigned int artsGetCurrentWorker() { return artsThreadInfo.groupId; }
+
+unsigned int artsGetCurrentCluster() { return artsThreadInfo.clusterId; }
+
+unsigned int artsGetTotalClusters() { return numNumaDomains; }
+
+void artsStopLocalWorker() { artsThreadInfo.alive = false; }
+
+void artsStopLocalNode() { artsRuntimeStop(); }
+
+uint64_t artsThreadSafeRandom() {
+  long int temp = jrand48(artsThreadInfo.drand_buf);
+  return (uint64_t)temp;
+}
+
+unsigned int artsGetTotalGpus() { return artsNodeInfo.gpu; }

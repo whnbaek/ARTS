@@ -36,56 +36,51 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#ifndef SHADADAPTER_H
+#define SHADADAPTER_H
 
-extern struct artsConfig *config;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+#include "arts/utils/Queue.h"
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+artsGuid_t artsEdtCreateShad(artsEdt_t funcPtr, unsigned int route,
+                             uint32_t paramc, uint64_t *paramv);
+artsGuid_t artsActiveMessageShad(artsEdt_t funcPtr, unsigned int route,
+                                 uint32_t paramc, uint64_t *paramv, void *data,
+                                 unsigned int size, artsGuid_t epochGuid);
+void artsSynchronousActiveMessageShad(artsEdt_t funcPtr, unsigned int route,
+                                      uint32_t paramc, uint64_t *paramv,
+                                      void *data, unsigned int size);
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+void artsIncLockShad();
+void artsDecLockShad();
+void artsCheckLockShad();
+void artsStartIntroShad(unsigned int start);
+void artsStopIntroShad();
+unsigned int artsGetShadLoopStride();
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+typedef struct {
+  volatile unsigned int lock;
+  volatile unsigned int size;
+  artsQueue *queue;
+} artsShadLock_t;
+artsShadLock_t *artsShadCreateLock();
+void artsShadLock(artsShadLock_t *lock);
+void artsShadUnlock(artsShadLock_t *lock);
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+artsGuid_t artsAllocateLocalBufferShad(void **buffer, uint32_t *sizeToWrite,
+                                       artsGuid_t epochGuid);
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+bool artsShadAliasTryLock(volatile uint64_t *lock);
+void artsShadAliasUnlock(volatile uint64_t *lock);
 
-  artsThreadMainJoin();
+void artsShadTMTLock(volatile uint64_t *lock);
+void artsShadTMTUnlock(volatile uint64_t *lock);
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* SHADADAPTER_H */

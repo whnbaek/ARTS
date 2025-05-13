@@ -36,56 +36,36 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#ifndef ARTSOUTOFORDERLIST_H
+#define ARTSOUTOFORDERLIST_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#define OOPERELEMENT 4
 
-extern struct artsConfig *config;
+struct artsOutOfOrderElement {
+  volatile struct artsOutOfOrderElement *next;
+  volatile void *array[OOPERELEMENT];
+};
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+struct artsOutOfOrderList {
+  volatile unsigned int readerLock;
+  volatile unsigned int writerLock;
+  volatile unsigned int count;
+  bool isFired;
+  struct artsOutOfOrderElement head;
+};
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
-
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+bool artsOutOfOrderListAddItem(struct artsOutOfOrderList *addToMe, void *item);
+void artsOutOfOrderListFireCallback(struct artsOutOfOrderList *fireMe,
+                                    void *localGuidAddress,
+                                    void (*callback)(void *, void *));
+void artsOutOfOrderListReset(struct artsOutOfOrderList *fireMe);
+void artsOutOfOrderListDelete(struct artsOutOfOrderList *fireMe);
+#ifdef __cplusplus
 }
+#endif
+
+#endif

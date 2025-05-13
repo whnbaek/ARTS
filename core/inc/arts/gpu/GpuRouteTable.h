@@ -36,56 +36,59 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#ifndef ARTSGPUROUTETABLE_H
+#define ARTSGPUROUTETABLE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-extern struct artsConfig *config;
+#include "arts/gas/RouteTable.h"
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+typedef struct {
+  uint64_t size;
+  volatile unsigned int timeStamp;
+  volatile void *realData;
+} artsItemWrapper_t;
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+typedef struct {
+  artsRouteTable_t routingTable;
+  artsItemWrapper_t *wrappers;
+  volatile unsigned int gcLock;
+} artsGpuRouteTable_t;
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+artsRouteTable_t *artsGpuNewRouteTable(unsigned int routeTableSize,
+                                       unsigned int shift);
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+uint64_t artsGpuLookupDb(artsGuid_t key);
+unsigned int artsGpuLookupDbFix(artsGuid_t key);
+void *artsGpuRouteTableAddItemRace(void *item, uint64_t size, artsGuid_t key,
+                                   unsigned int gpuId);
+artsItemWrapper_t *artsGpuRouteTableReserveItemRace(bool *added, uint64_t size,
+                                                    artsGuid_t key,
+                                                    unsigned int gpuId,
+                                                    bool addToUse);
+void *artsGpuRouteTableAddItemToDeleteRace(void *item, uint64_t size,
+                                           artsGuid_t key, unsigned int gpuId);
+void *artsGpuRouteTableLookupDb(artsGuid_t key, int gpuId,
+                                unsigned int *touched, unsigned int *timeStamp);
+void *artsGpuRouteTableLookupDbRes(artsGuid_t key, int gpuId,
+                                   unsigned int *touched,
+                                   unsigned int *timeStamp, bool res);
+bool artsGpuRouteTableReturnDb(artsGuid_t key, bool markToDelete,
+                               unsigned int gpuId);
+bool artsGpuInvalidateRouteTables(artsGuid_t key, unsigned int keepOnThisGpu);
+bool artsGpuInvalidateOnRouteTable(artsGuid_t key, unsigned int gpuId);
+uint64_t artsGpuCleanUpRouteTable(unsigned int sizeToClean, bool cleanZeros,
+                                  unsigned int gpuId);
+uint64_t artsGpuFreeAll(unsigned int gpuId);
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+void gpuGCReadLock();
+void gpuGCReadUnlock();
+void gpuGCWriteLock();
+void gpuGCWriteUnlock();
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+
+#endif

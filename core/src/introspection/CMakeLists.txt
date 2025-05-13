@@ -38,13 +38,13 @@
 ###############################################################################
 
 set(introspection_inc
-    ${CORE_INCLUDE_DIR}/artsCounter.h
-    ${CORE_INCLUDE_DIR}/artsIntrospection.h
+    ${CORE_INCLUDE_DIR}/arts/introspection/Counter.h
+    ${CORE_INCLUDE_DIR}/arts/introspection/Introspection.h
 )
 
 set(introspection_src
-    artsCounter.c
-    artsIntrospection.c
+    arts/introspection/Counter.c
+    arts/introspection/Introspection.c
 )
 
 add_library(introspection OBJECT ${introspection_inc} ${introspection_src})

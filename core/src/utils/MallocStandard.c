@@ -36,56 +36,106 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
+#include "arts/introspection/Counter.h"
 #include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
 #include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
+#include "arts/runtime/RT.h"
 #include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+static void zeroMemory(char *addr, size_t size) {
+  for (size_t i = 0; i < size; i++)
+    addr[i] = 0;
+}
 
-int mainArgc = 0;
-char **mainArgv = NULL;
-
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
-
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
+void *artsMalloc(size_t size) {
+  ARTSEDTCOUNTERTIMERSTART(mallocMemory);
+  size += sizeof(uint64_t);
+  void *address;
+  if (posix_memalign(&address, 16, size)) {
+    PRINTF("Out of Memory\n");
+    artsDebugGenerateSegFault();
   }
+  uint64_t *temp = (uint64_t *)address;
+  *temp = size;
+  address = (void *)(temp + 1);
+  if (artsThreadInfo.mallocTrace)
+    artsUpdatePerformanceMetric(artsMallocBW, artsThread, size, false);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(mallocMemory);
+  return address;
+}
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+void *artsRealloc(void *ptr, size_t size) {
+  uint64_t *temp = (uint64_t *)ptr;
+  temp--;
+  void *addr = realloc(temp, size + sizeof(uint64_t));
+  temp = (uint64_t *)addr;
+  *temp = size + sizeof(uint64_t);
+  return ++temp;
+}
 
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
+void *artsCalloc(size_t size) {
+  ARTSEDTCOUNTERTIMERSTART(callocMemory);
+  size += sizeof(uint64_t);
+  void *address;
+  if (posix_memalign(&address, 16, size)) {
+    PRINTF("Out of Memory\n");
+    artsDebugGenerateSegFault();
   }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+  zeroMemory(address, size);
+  uint64_t *temp = (uint64_t *)address;
+  *temp = size;
+  address = (void *)(temp + 1);
+  if (artsThreadInfo.mallocTrace)
+    artsUpdatePerformanceMetric(artsMallocBW, artsThread, size, false);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(callocMemory);
+  return address;
+}
+
+void artsFree(void *ptr) {
+  ARTSEDTCOUNTERTIMERSTART(freeMemory);
+  uint64_t *temp = (uint64_t *)ptr;
+  temp--;
+  uint64_t size = (*temp);
+  free(temp);
+  if (artsThreadInfo.mallocTrace)
+    artsUpdatePerformanceMetric(artsFreeBW, artsThread, size, false);
+  ARTSEDTCOUNTERTIMERENDINCREMENT(freeMemory);
+}
+
+void *artsMallocAlign(size_t size, size_t align) {
+  if (!size || align < ALIGNMENT || align % 2)
+    return NULL;
+
+  void *ptr = artsMalloc(size + align);
+  memset(ptr, 0, align);
+  if (ptr) {
+    char *temp = ptr;
+    *temp = 'a';
+    ptr = (void *)(temp + 1);
+    uintptr_t mask = ~(uintptr_t)(align - 1);
+    ptr = (void *)(((uintptr_t)ptr + align - 1) & mask);
+  }
+  return ptr;
+}
+
+void *artsCallocAlign(size_t size, size_t align) {
+  if (!size || align < ALIGNMENT || align % 2)
+    return NULL;
+
+  void *ptr = artsCalloc(size + align);
+  if (ptr) {
+    char *temp = ptr;
+    *temp = 1;
+    ptr = (void *)(temp + 1);
+    uintptr_t mask = ~(uintptr_t)(align - 1);
+    ptr = (void *)(((uintptr_t)ptr + align - 1) & mask);
+  }
+  return ptr;
+}
+
+void artsFreeAlign(void *ptr) {
+  char *trail = (char *)ptr - 1;
+  while (!(*trail))
+    trail--;
+  artsFree(trail);
 }

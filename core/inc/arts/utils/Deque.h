@@ -36,56 +36,33 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#ifndef ARTSDEQUE_H
+#define ARTSDEQUE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#define STEALSIZE 1024
 
-extern struct artsConfig *config;
+struct artsDeque;
+struct artsDeque *artsDequeListNew(unsigned int listSize,
+                                   unsigned int dequeSize);
+struct artsDeque *artsDequeListGetDeque(struct artsDeque *dequeList,
+                                        unsigned int position);
+void artsDequeListDelete(void *dequeList);
+struct artsDeque *artsDequeNew(unsigned int size);
+void artsDequeDelete(struct artsDeque *deque);
+bool artsDequePushFront(struct artsDeque *deque, void *item,
+                        unsigned int priority);
+void *artsDequePopFront(struct artsDeque *deque);
+void *artsDequePopBack(struct artsDeque *deque);
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+bool artsDequeEmpty(struct artsDeque *deque);
+void artsDequeClear(struct artsDeque *deque);
+unsigned int artsDequeSize(struct artsDeque *deque);
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
-
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+#endif

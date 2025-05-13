@@ -36,56 +36,83 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#ifndef ARTSDBLIST_H
+#define ARTSDBLIST_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+#define DBSPERELEMENT 8
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+struct artsDbElement {
+  struct artsDbElement *next;
+  unsigned int array[DBSPERELEMENT];
+};
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+struct artsLocalDelayedEdt {
+  struct artsLocalDelayedEdt *next;
+  struct artsEdt *edt[DBSPERELEMENT];
+  unsigned int slot[DBSPERELEMENT];
+  artsType_t mode[DBSPERELEMENT];
+};
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+struct artsDbFrontier {
+  struct artsDbElement list;
+  unsigned int position;
+  struct artsDbFrontier *next;
+  volatile unsigned int lock;
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
+  /*
+   * This is because we can't aggregate exclusive requests
+   * and we need to store them somewhere.  There will only
+   * be at most one per frontier.
+   */
+  unsigned int exNode;
+  struct artsEdt *exEdt;
+  unsigned int exSlot;
+  artsType_t exMode;
 
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
+  /*
+   * This is dumb, but we need somewhere to store requests
+   * that are from the guid owner but cannot be satisfied
+   * because of the memory model
+   */
+  unsigned int localPosition;
+  struct artsLocalDelayedEdt localDelayed;
+};
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+struct artsDbList {
+  struct artsDbFrontier *head;
+  struct artsDbFrontier *tail;
+  volatile unsigned int reader;
+  volatile unsigned int writer;
+};
 
-  artsThreadMainJoin();
+struct artsDbFrontierIterator {
+  struct artsDbFrontier *frontier;
+  unsigned int currentIndex;
+  struct artsDbElement *currentElement;
+};
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+struct artsDbList *artsNewDbList();
+unsigned int artsCurrentFrontierSize(struct artsDbList *dbList);
+struct artsDbFrontierIterator *
+artsDbFrontierIterCreate(struct artsDbFrontier *frontier);
+unsigned int artsDbFrontierIterSize(struct artsDbFrontierIterator *iter);
+bool artsDbFrontierIterNext(struct artsDbFrontierIterator *iter,
+                            unsigned int *next);
+bool artsDbFrontierIterHasNext(struct artsDbFrontierIterator *iter);
+void artsDbFrontierIterDelete(struct artsDbFrontierIterator *iter);
+void artsProgressFrontier(struct artsDb *db, unsigned int rank);
+struct artsDbFrontierIterator *
+artsProgressAndGetFrontier(struct artsDbList *dbList);
+bool artsPushDbToList(struct artsDbList *dbList, unsigned int data, bool write,
+                      bool exclusive, bool local, bool bypass,
+                      struct artsEdt *edt, unsigned int slot, artsType_t mode);
+struct artsDbFrontierIterator *artsCloseFrontier(struct artsDbList *dbList);
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* ARTSDBLIST_H */

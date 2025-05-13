@@ -37,19 +37,27 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
-set(gas_inc
-    ${CORE_INCLUDE_DIR}/arts/gas/Guid.h
-    ${CORE_INCLUDE_DIR}/arts/gas/OutOfOrder.h
-    ${CORE_INCLUDE_DIR}/arts/gas/OutOfOrderList.h
-    ${CORE_INCLUDE_DIR}/arts/gas/RouteTable.h
+if(DEQUE MATCHES "chase_lev")
+    set(common_lib_src ${common_lib_src} chaseLevDequeSimple.c)
+elseif(DEQUE MATCHES "priority")
+    set(common_lib_src ${common_lib_src} chaseLevDequePriority.c)
+else()
+    message(FATAL_ERROR "Unsupported runtime deque chosen.")
+endif()
+
+set(common_inc
+    ${CORE_INCLUDE_DIR}/artsDeque.h
+    ${CORE_INCLUDE_DIR}/artsQueue.h
+    ${CORE_INCLUDE_DIR}/artsArrayList.h
+    ${CORE_INCLUDE_DIR}/artsLinkList.h
 )
 
-set(gas_src
-    arts/gas/Guid.c
-    arts/gas/OutOfOrder.c
-    arts/gas/OutOfOrderList.c
-    arts/gas/RouteTable.c
+set(common_src
+    ${common_lib_src}
+    artsLinkList.c
+    artsArrayList.c
+    artsQueue.c
 )
 
-add_library(gas OBJECT ${gas_inc} ${gas_src} )
-install(FILES ${gas_inc} DESTINATION include)
+add_library(common OBJECT ${common_inc} ${common_src})
+install(FILES ${common_inc} DESTINATION include)

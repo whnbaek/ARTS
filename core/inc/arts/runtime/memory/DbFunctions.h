@@ -36,56 +36,29 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+#ifndef ARTSDBFUNCTIONS_H
+#define ARTSDBFUNCTIONS_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+void artsDbCreateInternal(artsGuid_t guid, void *addr, uint64_t size,
+                          uint64_t packetSize, artsType_t mode);
+void acquireDbs(struct artsEdt *edt);
+void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu);
+bool artsAddDbDuplicate(struct artsDb *db, unsigned int rank,
+                        struct artsEdt *edt, unsigned int slot,
+                        artsType_t mode);
+void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu);
+void internalPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
+                     unsigned int slot, unsigned int offset, unsigned int size,
+                     artsGuid_t epochGuid, unsigned int rank);
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+void *artsDbMalloc(artsType_t mode, unsigned int size);
+void artsDbFree(void *ptr);
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
-
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+#endif /* artsDBFUNCTIONS_H */

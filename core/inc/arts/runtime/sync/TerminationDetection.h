@@ -36,56 +36,46 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
+
+#ifndef ARTS_TERMINATION_DETECTION_H
+#define ARTS_TERMINATION_DETECTION_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
-#include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
 
-extern struct artsConfig *config;
+artsEpoch_t *createEpoch(artsGuid_t *guid, artsGuid_t edtGuid,
+                         unsigned int slot);
+void incrementQueueEpoch(artsGuid_t epochGuid);
+void incrementActiveEpoch(artsGuid_t epochGuid);
+void incrementFinishedEpoch(artsGuid_t epochGuid);
+void sendEpoch(artsGuid_t epochGuid, unsigned int source, unsigned int dest);
+void broadcastEpochRequest(artsGuid_t epochGuid);
+bool checkEpoch(artsEpoch_t *epoch, unsigned int totalActive,
+                unsigned int totalFinish);
+void reduceEpoch(artsGuid_t epochGuid, unsigned int active,
+                 unsigned int finish);
+void deleteEpoch(artsGuid_t epochGuid, artsEpoch_t *epoch);
 
-int mainArgc = 0;
-char **mainArgv = NULL;
+typedef struct artsEpochPool {
+  struct artsEpochPool *next;
+  unsigned int size;
+  unsigned int index;
+  volatile unsigned int outstanding;
+  artsEpoch_t pool[];
+} artsEpochPool_t;
 
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
+artsEpochPool_t *createEpochPool(artsGuid_t *epochPoolGuid,
+                                 unsigned int poolSize, artsGuid_t *startGuid);
+artsEpoch_t *getPoolEpoch(artsGuid_t edtGuid, unsigned int slot);
 
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
+void globalShutdownGuidIncActive();
+void globalShutdownGuidIncQueue();
+void globalShutdownGuidIncFinished();
+bool createShutdownEpoch();
 
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
-  }
-
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
-
-  artsThreadMainJoin();
-
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+#ifdef __cplusplus
 }
+#endif
+#endif

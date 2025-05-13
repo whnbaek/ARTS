@@ -36,56 +36,88 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#define _GNU_SOURCE
-#define _FILE_OFFSET_BITS 64
-#include "arts/arts.h"
-#include "arts/gas/Guid.h"
-#include "arts/introspection/Introspection.h"
-#include "arts/network/Remote.h"
-#include "arts/network/RemoteLauncher.h"
-#include "arts/runtime/Globals.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/system/Config.h"
+#ifndef ARTSGPUSTREAM_H
+#define ARTSGPUSTREAM_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "arts/gpu/GpuRouteTable.h"
+#include "arts/runtime/RT.h"
 #include "arts/system/Debug.h"
-#include "arts/system/Threads.h"
+#include "arts/utils/ArrayList.h"
+#include "arts/utils/Atomics.h"
+#include <cuda_runtime.h>
 
-extern struct artsConfig *config;
-
-int mainArgc = 0;
-char **mainArgv = NULL;
-
-int artsRT(int argc, char **argv) {
-  mainArgc = argc;
-  mainArgv = argv;
-  artsRemoteTryToBecomePrinter();
-  config = artsConfigLoad();
-
-  if (config->coreDump)
-    artsTurnOnCoreDumps();
-
-  artsGlobalRankId = 0;
-  artsGlobalRankCount = config->tableLength;
-  if (strncmp(config->launcher, "local", 5) != 0)
-    artsServerSetup(config);
-  artsGlobalMasterRankId = config->masterRank;
-  if (artsGlobalRankId == config->masterRank && config->masterBoot)
-    config->launcherData->launchProcesses(config->launcherData);
-
-  if (artsGlobalRankCount > 1) {
-    artsRemoteSetupOutgoing();
-    if (!artsRemoteSetupIncoming())
-      return -1;
+#define CHECKCORRECT(x)                                                        \
+  {                                                                            \
+    cudaError_t err;                                                           \
+    if ((err = (x)) != cudaSuccess) {                                          \
+      PRINTF("FAILED %s: %s\n", #x, cudaGetErrorString(err));                  \
+      artsDebugGenerateSegFault();                                             \
+    }                                                                          \
   }
 
-  artsThreadInit(config);
-  artsThreadZeroNodeStart();
+typedef struct {
+  unsigned int gpuId;
+  volatile unsigned int *newEdtLock;
+  artsArrayList *newEdts;
+  void *devClosure;
+  struct artsEdt *edt;
+} artsGpuCleanUp_t;
 
-  artsThreadMainJoin();
+typedef struct {
+  int device;
+  volatile uint64_t availGlobalMem;
+  volatile uint64_t totalGlobalMem;
+  struct cudaDeviceProp prop;
+  volatile float occupancy;
+  volatile unsigned int deviceLock;
+  volatile unsigned int totalEdts;
+  volatile unsigned int availableEdtSlots;
+  volatile unsigned int runningEdts;
+  volatile unsigned int availableThreads;
+  cudaStream_t stream;
+} artsGpu_t;
 
-  if (artsGlobalRankId == config->masterRank && config->masterBoot) {
-    config->launcherData->cleanupProcesses(config->launcherData);
-  }
-  artsConfigDestroy(config);
-  artsRemoteTryToClosePrinter();
-  return 0;
+extern artsGpu_t *artsGpus;
+
+void artsNodeInitGpus();
+artsGpu_t *artsFindGpu(void *data);
+
+void artsInitPerGpuWrapper(int argc, char **argv);
+void artsWorkerInitGpus();
+void artsCleanupGpus();
+void artsScheduleToGpuInternal(artsEdt_t fnPtr, uint32_t paramc,
+                               uint64_t *paramv, uint32_t depc,
+                               artsEdtDep_t *depv, dim3 grid, dim3 block,
+                               void *edtPtr, artsGpu_t *artsGpu);
+void artsScheduleToGpu(artsEdt_t fnPtr, uint32_t paramc, uint64_t *paramv,
+                       uint32_t depc, artsEdtDep_t *depv, void *edtPtr,
+                       artsGpu_t *artsGpu);
+void CUDART_CB artsWrapUp(cudaStream_t stream, cudaError_t status, void *data);
+void artsGpuSynchronize(artsGpu_t *artsGpu);
+void artsGpuStreamBusy(artsGpu_t *artsGpu);
+artsGpu_t *artsGpuScheduled(unsigned id);
+
+void artsStoreNewEdts(void *edt);
+void artsHandleNewEdts();
+void freeGpuItem(artsRouteItem_t *item);
+
+extern __thread dim3 *artsLocalGrid;
+extern __thread dim3 *artsLocalBlock;
+extern __thread cudaStream_t *artsLocalStream;
+extern __thread int artsLocalGpuId;
+
+extern artsGpu_t *artsGpus;
+
+extern volatile unsigned int hits;
+extern volatile unsigned int misses;
+extern volatile uint64_t freeBytes;
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* ARTSGPUSTREAM_H */
