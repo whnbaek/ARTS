@@ -347,29 +347,29 @@ void artsDbDestroySafe(artsGuid_t guid, bool remote) {
 }
 
 #ifdef SMART_DB
-void artsSmartDbIncrementLatch(artsGuid_t guid) {
+void artsDbIncrementLatch(artsGuid_t guid) {
   struct artsDb *dbRes = artsRouteTableLookupItem(guid);
   if (dbRes != NULL)
     artsPersistentEventIncrementLatch(dbRes->eventGuid);
   else
-    artsRemoteSmartDbIncrementLatch(guid);
+    artsRemoteDbIncrementLatch(guid);
 }
 
-void artsSmartDbDecrementLatch(artsGuid_t guid) {
+void artsDbDecrementLatch(artsGuid_t guid) {
   struct artsDb *dbRes = artsRouteTableLookupItem(guid);
   if (dbRes != NULL)
     artsPersistentEventDecrementLatch(dbRes->eventGuid);
   else
-    artsRemoteSmartDbDecrementLatch(guid);
+    artsRemoteDbDecrementLatch(guid);
 }
 
-void artsSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+void artsDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
                               uint32_t edtSlot) {
   struct artsDb *dbRes = artsRouteTableLookupItem(dbSrc);
   if (dbRes != NULL)
     artsAddDependenceToPersistentEvent(dbRes->eventGuid, edtDest, edtSlot);
   else
-    artsRemoteSmartDbAddDependence(dbSrc, edtDest, edtSlot);
+    artsRemoteDbAddDependence(dbSrc, edtDest, edtSlot);
 }
 #endif
 

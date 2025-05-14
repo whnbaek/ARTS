@@ -40,6 +40,7 @@
 #include "arts/arts.h"
 #include "arts/network/RemoteLauncher.h"
 #include "arts/runtime/Globals.h"
+#include "arts/system/Debug.h"
 #include "arts/utils/LinkList.h"
 #include "unistd.h"
 #include <ctype.h>
@@ -595,8 +596,9 @@ struct artsConfig *artsConfigLoad() {
     configFile = fopen("arts.cfg", "r");
 
   if (configFile == NULL) {
-    PRINTF("No Config file found (./arts.cfg).\n");
+    printf("No Config file found (./arts.cfg).\n");
     configVariables = NULL;
+    artsDebugGenerateSegFault();
   } else
     configVariables = artsConfigGetVariables(configFile);
 

@@ -190,7 +190,6 @@ typedef enum artsMetricType {
   artsEventMemorySize,
   artsPersistentEventMemorySize,
   artsDbMemorySize,
-  artsSmartDbMemorySize,
   artsBufferMemorySize,
   artsDbCount,
   artsLastMetricType

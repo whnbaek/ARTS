@@ -37,7 +37,7 @@
 // ** License for the specific language governing permissions and limitations   **
 // ******************************************************************************/
 
-// #include "arts/runtime/memory/SmartDbFunctions.h"
+// #include "arts/runtime/memory/DbFunctions.h"
 // #include "arts/runtime/memory/DbList.h"
 // #include "arts/utils/Atomics.h"
 // #include "arts/introspection/Counter.h"
@@ -58,17 +58,17 @@
 
 // artsTypeName;
 
-// void *artsSmartDbMalloc(unsigned int size) { return artsMalloc(size); }
+// void *artsDbMalloc(unsigned int size) { return artsMalloc(size); }
 
-// void artsSmartDbFree(void *ptr) { artsFree(ptr); }
+// void artsDbFree(void *ptr) { artsFree(ptr); }
 
-// void artsSmartDbCreateInternal(artsGuid_t guid, void *addr, uint64_t size,
+// void artsDbCreateInternal(artsGuid_t guid, void *addr, uint64_t size,
 //                                uint64_t packetSize, artsType_t mode) {
 //   struct artsHeader *header = (struct artsHeader *)addr;
 //   header->type = mode;
 //   header->size = packetSize;
 
-//   struct artsSmartDb *dbRes = (struct artsSmartDb *)header;
+//   struct artsDb *dbRes = (struct artsDb *)header;
 //   dbRes->guid = guid;
 //   dbRes->reader = 0;
 //   dbRes->writer = 0;
@@ -78,101 +78,101 @@
 
 //   if (mode == ARTS_DB_LC) {
 //     void *shadowCopy = (void *)(((char *)addr) + packetSize);
-//     memcpy(shadowCopy, addr, sizeof(struct artsSmartDb));
+//     memcpy(shadowCopy, addr, sizeof(struct artsDb));
 //   }
 // }
 
-// artsGuid_t artsSmartDbCreateRemote(unsigned int route, uint64_t size,
+// artsGuid_t artsDbCreateRemote(unsigned int route, uint64_t size,
 //                                    artsType_t mode) {
 //   ARTSEDTCOUNTERTIMERSTART(smartDbCreateCounter);
 //   artsGuid_t guid = artsGuidCreateForRank(route, mode);
-//   void *ptr = artsSmartDbMalloc(sizeof(struct artsSmartDb));
-//   struct artsSmartDb *db = (struct artsSmartDb *)ptr;
-//   db->header.size = size + sizeof(struct artsSmartDb);
+//   void *ptr = artsDbMalloc(sizeof(struct artsDb));
+//   struct artsDb *db = (struct artsDb *)ptr;
+//   db->header.size = size + sizeof(struct artsDb);
 //   db->dbList = (mode == ARTS_DB_PIN) ? (void *)0 : (void *)1;
 
-//   artsRemoteMemoryMove(route, guid, ptr, sizeof(struct artsSmartDb),
-//                        ARTS_REMOTE_SMART_DB_SEND_MSG, artsSmartDbFree);
+//   artsRemoteMemoryMove(route, guid, ptr, sizeof(struct artsDb),
+//                        ARTS_REMOTE_DB_SEND_MSG, artsDbFree);
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(smartDbCreateCounter);
 //   return guid;
 // }
 
-// artsGuid_t artsSmartDbCreate(void **addr, uint64_t size, artsType_t mode) {
+// artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode) {
 //   ARTSEDTCOUNTERTIMERSTART(smartDbCreateCounter);
 //   artsGuid_t guid = NULL_GUID;
-//   unsigned int smartDbSize = size + sizeof(struct artsSmartDb);
+//   unsigned int smartDbSize = size + sizeof(struct artsDb);
 
-//   ARTSSETMEMSHOTTYPE(artsSmartDbMemorySize);
-//   void *ptr = artsSmartDbMalloc(smartDbSize);
+//   ARTSSETMEMSHOTTYPE(artsDbMemorySize);
+//   void *ptr = artsDbMalloc(smartDbSize);
 //   ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
 //   if (ptr) {
 //     guid = artsGuidCreateForRank(artsGlobalRankId, mode);
-//     artsSmartDbCreateInternal(guid, ptr, size, smartDbSize, mode);
+//     artsDbCreateInternal(guid, ptr, size, smartDbSize, mode);
 //     artsRouteTableAddItem(ptr, guid, artsGlobalRankId, false);
-//     *addr = (void *)((struct artsSmartDb *)ptr + 1);
+//     *addr = (void *)((struct artsDb *)ptr + 1);
 //   }
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(smartDbCreateCounter);
 //   return guid;
 // }
 
-// artsGuid_t artsSmartDbCreatePtr(artsPtr_t *addr, uint64_t size,
+// artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size,
 //                                 artsType_t mode) {
 //   ARTSEDTCOUNTERTIMERSTART(smartDbCreateCounter);
 //   artsGuid_t guid = NULL_GUID;
-//   unsigned int smartDbSize = size + sizeof(struct artsSmartDb);
+//   unsigned int smartDbSize = size + sizeof(struct artsDb);
 
-//   ARTSSETMEMSHOTTYPE(artsSmartDbMemorySize);
-//   void *ptr = artsSmartDbMalloc(smartDbSize);
+//   ARTSSETMEMSHOTTYPE(artsDbMemorySize);
+//   void *ptr = artsDbMalloc(smartDbSize);
 //   ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
 //   if (ptr) {
 //     guid = artsGuidCreateForRank(artsGlobalRankId, mode);
-//     artsSmartDbCreateInternal(guid, ptr, size, smartDbSize, mode);
+//     artsDbCreateInternal(guid, ptr, size, smartDbSize, mode);
 //     // change false to true to force a manual DB delete
 //     artsRouteTableAddItem(ptr, guid, artsGlobalRankId, false);
-//     *addr = (artsPtr_t)((struct artsSmartDb *)ptr + 1);
+//     *addr = (artsPtr_t)((struct artsDb *)ptr + 1);
 //   }
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(smartDbCreateCounter);
 //   return guid;
 // }
 
-// void *artsSmartDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
+// void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
 //   ARTSEDTCOUNTERTIMERSTART(smartDbCreateCounter);
 //   artsType_t mode = artsGuidGetType(guid);
 
 //   PRINTF("Creating DB with guid: %u and mode %s\n", guid, getTypeName(mode));
 //   void *ptr = NULL;
 //   if (artsIsGuidLocal(guid)) {
-//     unsigned int smartDbSize = size + sizeof(struct artsSmartDb);
+//     unsigned int smartDbSize = size + sizeof(struct artsDb);
 
-//     ARTSSETMEMSHOTTYPE(artsSmartDbMemorySize);
-//     ptr = artsSmartDbMalloc(smartDbSize);
+//     ARTSSETMEMSHOTTYPE(artsDbMemorySize);
+//     ptr = artsDbMalloc(smartDbSize);
 //     ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
 //     if (ptr) {
-//       artsSmartDbCreateInternal(guid, ptr, size, smartDbSize, mode);
+//       artsDbCreateInternal(guid, ptr, size, smartDbSize, mode);
 //       if (artsRouteTableAddItemRace(ptr, guid, artsGlobalRankId, false))
 //         artsRouteTableFireOO(guid, artsOutOfOrderHandler);
-//       ptr = (void *)((struct artsSmartDb *)ptr + 1);
+//       ptr = (void *)((struct artsDb *)ptr + 1);
 //     }
 //   }
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(smartDbCreateCounter);
 //   return ptr;
 // }
 
-// void *artsSmartDbCreateWithGuidAndData(artsGuid_t guid, void *data,
+// void *artsDbCreateWithGuidAndData(artsGuid_t guid, void *data,
 //                                        uint64_t size) {
 //   ARTSEDTCOUNTERTIMERSTART(smartDbCreateCounter);
 //   artsType_t mode = artsGuidGetType(guid);
 //   void *ptr = NULL;
 //   if (artsIsGuidLocal(guid)) {
-//     unsigned int smartDbSize = size + sizeof(struct artsSmartDb);
+//     unsigned int smartDbSize = size + sizeof(struct artsDb);
 
-//     ARTSSETMEMSHOTTYPE(artsSmartDbMemorySize);
-//     ptr = artsSmartDbMalloc(smartDbSize);
+//     ARTSSETMEMSHOTTYPE(artsDbMemorySize);
+//     ptr = artsDbMalloc(smartDbSize);
 //     ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
 
 //     if (ptr) {
-//       artsSmartDbCreateInternal(guid, ptr, size, smartDbSize, mode);
-//       void *dbData = (void *)((struct artsSmartDb *)ptr + 1);
+//       artsDbCreateInternal(guid, ptr, size, smartDbSize, mode);
+//       void *dbData = (void *)((struct artsDb *)ptr + 1);
 //       memcpy(dbData, data, size);
 //       if (artsRouteTableAddItemRace(ptr, guid, artsGlobalRankId, false))
 //         artsRouteTableFireOO(guid, artsOutOfOrderHandler);
@@ -183,21 +183,21 @@
 //   return ptr;
 // }
 
-// void *artsSmartDbResizePtr(struct artsSmartDb *dbRes, unsigned int size,
+// void *artsDbResizePtr(struct artsDb *dbRes, unsigned int size,
 //                            bool copy) {
 //   if (dbRes) {
 //     unsigned int oldSize = dbRes->header.size;
-//     unsigned int newSize = size + sizeof(struct artsSmartDb);
-//     ARTSSETMEMSHOTTYPE(artsSmartDbMemorySize);
-//     struct artsSmartDb *ptr = artsCalloc(size + sizeof(struct artsSmartDb));
+//     unsigned int newSize = size + sizeof(struct artsDb);
+//     ARTSSETMEMSHOTTYPE(artsDbMemorySize);
+//     struct artsDb *ptr = artsCalloc(size + sizeof(struct artsDb));
 //     ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
 //     if (ptr) {
 //       if (copy)
 //         memcpy(ptr, dbRes, oldSize);
 //       else
-//         memcpy(ptr, dbRes, sizeof(struct artsSmartDb));
+//         memcpy(ptr, dbRes, sizeof(struct artsDb));
 //       artsFree(dbRes);
-//       ptr->header.size = size + sizeof(struct artsSmartDb);
+//       ptr->header.size = size + sizeof(struct artsDb);
 //       return (void *)(ptr + 1);
 //     }
 //   }
@@ -206,47 +206,47 @@
 
 // // Must be in write mode (or only copy) to update and alloced (no NO_ACQUIRE
 // // nonsense), otherwise will be racy...
-// void *artsSmartDbResize(artsGuid_t guid, unsigned int size, bool copy) {
-//   struct artsSmartDb *dbRes = artsRouteTableLookupItem(guid);
-//   void *ptr = artsSmartDbResizePtr(dbRes, size, copy);
+// void *artsDbResize(artsGuid_t guid, unsigned int size, bool copy) {
+//   struct artsDb *dbRes = artsRouteTableLookupItem(guid);
+//   void *ptr = artsDbResizePtr(dbRes, size, copy);
 //   if (ptr) {
-//     dbRes = ((struct artsSmartDb *)ptr) - 1;
+//     dbRes = ((struct artsDb *)ptr) - 1;
 //   }
 //   return ptr;
 // }
 
-// void artsSmartDbMove(artsGuid_t guid, unsigned int rank) {
+// void artsDbMove(artsGuid_t guid, unsigned int rank) {
 //   unsigned int guidRank = artsGuidGetRank(guid);
 //   if (guidRank != rank) {
 //     if (guidRank != artsGlobalRankId)
-//       artsSmartDbMoveRequest(guid, rank);
+//       artsDbMoveRequest(guid, rank);
 //     else {
-//       struct artsSmartDb *dbRes = artsRouteTableLookupItem(guid);
+//       struct artsDb *dbRes = artsRouteTableLookupItem(guid);
 //       if (dbRes)
 //         artsRemoteMemoryMove(rank, guid, dbRes, dbRes->header.size,
-//                              ARTS_REMOTE_SMART_DB_MOVE_MSG, artsSmartDbFree);
+//                              ARTS_REMOTE_DB_MOVE_MSG, artsDbFree);
 //       else
 //         artsOutOfOrderDbMove(guid, rank);
 //     }
 //   }
 // }
 
-// void artsSmartDbDestroy(artsGuid_t guid) {
+// void artsDbDestroy(artsGuid_t guid) {
 //   artsType_t mode = artsGuidGetType(guid);
-//   struct artsSmartDb *dbRes = artsRouteTableLookupItem(guid);
+//   struct artsDb *dbRes = artsRouteTableLookupItem(guid);
 //   if (dbRes != NULL) {
 //     artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
-//     artsSmartDbFree(dbRes);
+//     artsDbFree(dbRes);
 //     artsRouteTableRemoveItem(guid);
 //   } else
 //     artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
 // }
 
-// bool artsSmartDbRenameWithGuid(artsGuid_t newGuid, artsGuid_t oldGuid) {
+// bool artsDbRenameWithGuid(artsGuid_t newGuid, artsGuid_t oldGuid) {
 //   bool ret = false;
 //   unsigned int rank = artsGuidGetRank(oldGuid);
 //   if (rank == artsGlobalRankId) {
-//     struct artsSmartDb *dbRes = artsRouteTableLookupItem(oldGuid);
+//     struct artsDb *dbRes = artsRouteTableLookupItem(oldGuid);
 //     if (dbRes != NULL) {
 //       dbRes->guid = newGuid;
 //       artsRouteTableHideItem(oldGuid);
@@ -260,12 +260,12 @@
 //   return true;
 // }
 
-// artsGuid_t artsSmartDbCopyToNewType(artsGuid_t oldGuid, artsType_t newType) {
+// artsGuid_t artsDbCopyToNewType(artsGuid_t oldGuid, artsType_t newType) {
 //   artsGuid_t ret = NULL_GUID;
 //   unsigned int rank = artsGuidGetRank(oldGuid);
 //   if (rank == artsGlobalRankId) {
 //     artsGuid_t newGuid = artsGuidCreateForRank(rank, artsGuidGetType(newType));
-//     struct artsSmartDb *dbRes = artsRouteTableLookupItem(oldGuid);
+//     struct artsDb *dbRes = artsRouteTableLookupItem(oldGuid);
 //     if (dbRes != NULL) {
 //       artsAtomicAdd(&dbRes->copyCount, 1);
 //       dbRes->guid = newGuid;
@@ -277,18 +277,18 @@
 //   return ret;
 // }
 
-// artsGuid_t artsSmartDbRename(artsGuid_t guid) {
+// artsGuid_t artsDbRename(artsGuid_t guid) {
 //   artsGuid_t newGuid =
 //       artsGuidCreateForRank(artsGuidGetRank(guid), artsGuidGetType(guid));
-//   return (artsSmartDbRenameWithGuid(newGuid, guid)) ? newGuid : NULL_GUID;
+//   return (artsDbRenameWithGuid(newGuid, guid)) ? newGuid : NULL_GUID;
 // }
 
-// void artsSmartDbDestroySafe(artsGuid_t guid, bool remote) {
-//   struct artsSmartDb *dbRes = artsRouteTableLookupItem(guid);
+// void artsDbDestroySafe(artsGuid_t guid, bool remote) {
+//   struct artsDb *dbRes = artsRouteTableLookupItem(guid);
 //   if (dbRes != NULL) {
 //     if (remote)
 //       artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
-//     artsSmartDbFree(dbRes);
+//     artsDbFree(dbRes);
 //     //        artsFree(dbRes);
 //     artsRouteTableRemoveItem(guid);
 //   } else if (remote)
@@ -306,7 +306,7 @@
 //   for (int i = 0; i < edt->depc; i++) {
 //     // PRINTF("MODE: %s -> %p\n", getTypeName(depv[i].mode), depv[i].ptr);
 //     if (depv[i].guid && depv[i].ptr == NULL) {
-//       struct artsSmartDb *dbFound = NULL;
+//       struct artsDb *dbFound = NULL;
 //       int owner = artsGuidGetRank(depv[i].guid);
 //       // PRINTF("Owner: %u\n", owner);
 //       switch (depv[i].mode) {
@@ -314,13 +314,13 @@
 //       case ARTS_DB_ONCE: {
 //         if (owner != artsGlobalRankId) {
 //           artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, false);
-//           artsSmartDbMove(depv[i].guid, artsGlobalRankId);
+//           artsDbMove(depv[i].guid, artsGlobalRankId);
 //           break;
 //         }
 //         // else fall through to the local case :-p
 //       }
 //       case ARTS_DB_ONCE_LOCAL: {
-//         struct artsSmartDb *dbTemp = artsRouteTableLookupItem(depv[i].guid);
+//         struct artsDb *dbTemp = artsRouteTableLookupItem(depv[i].guid);
 //         if (dbTemp) {
 //           dbFound = dbTemp;
 //           artsAtomicSub(&edt->depcNeeded, 1U);
@@ -332,7 +332,7 @@
 //         //                    if(artsIsGuidLocal(depv[i].guid))
 //         //                    {
 //         int validRank = -1;
-//         struct artsSmartDb *dbTemp =
+//         struct artsDb *dbTemp =
 //             artsRouteTableLookupDb(depv[i].guid, &validRank, true);
 //         if (dbTemp) {
 //           dbFound = dbTemp;
@@ -346,7 +346,7 @@
 //         // Owner Rank
 //         if (owner == artsGlobalRankId) {
 //           int validRank = -1;
-//           struct artsSmartDb *dbTemp =
+//           struct artsDb *dbTemp =
 //               artsRouteTableLookupDb(depv[i].guid, &validRank, false);
 //           // We have found an entry
 //           if (dbTemp) {
@@ -375,7 +375,7 @@
 //         // Owner Rank
 //         if (owner == artsGlobalRankId) {
 //           int validRank = -1;
-//           struct artsSmartDb *dbTemp =
+//           struct artsDb *dbTemp =
 //               artsRouteTableLookupDb(depv[i].guid, &validRank, true);
 //           // We have found an entry
 //           if (dbTemp) {
@@ -412,7 +412,7 @@
 //           }
 //         } else {
 //           int validRank = -1;
-//           struct artsSmartDb *dbTemp =
+//           struct artsDb *dbTemp =
 //               artsRouteTableLookupDb(depv[i].guid, &validRank, true);
 //           // We have found an entry
 //           if (dbTemp) {
@@ -468,7 +468,7 @@
 //       DPRINTF(" - ARTS_DB_WRITE\n");
 //       // Signal we finished and progress frontier
 //       if (owner == artsGlobalRankId) {
-//         struct artsSmartDb *db = ((struct artsSmartDb *)depv[i].ptr - 1);
+//         struct artsDb *db = ((struct artsDb *)depv[i].ptr - 1);
 //         artsProgressFrontier(db, artsGlobalRankId);
 //       } else {
 //         artsRemoteUpdateDb(depv[i].guid, false);
@@ -482,7 +482,7 @@
 //       artsFree(depv[i].ptr);
 //     } else if (!gpu && depv[i].mode == ARTS_DB_LC) {
 //       DPRINTF(" - ARTS_DB_LC\n");
-//       struct artsSmartDb *db = ((struct artsSmartDb *)depv[i].ptr) - 1;
+//       struct artsDb *db = ((struct artsDb *)depv[i].ptr) - 1;
 //       artsReaderUnlock(&db->reader);
 //     } else {
 //       if (artsRouteTableReturnDb(depv[i].guid, depv[i].mode != ARTS_DB_PIN)) {
@@ -495,7 +495,7 @@
 //   }
 // }
 
-// bool artsAddDbDuplicate(struct artsSmartDb *db, unsigned int rank,
+// bool artsAddDbDuplicate(struct artsDb *db, unsigned int rank,
 //                         struct artsEdt *edt, unsigned int slot,
 //                         artsType_t mode) {
 //   bool write = (mode == ARTS_DB_WRITE);
@@ -505,11 +505,11 @@
 //                           mode);
 // }
 
-// void internalGetFromSmartDb(artsGuid_t edtGuid, artsGuid_t guid,
+// void internalGetFromDb(artsGuid_t edtGuid, artsGuid_t guid,
 //                             unsigned int slot, unsigned int offset,
 //                             unsigned int size, unsigned int rank) {
 //   if (rank == artsGlobalRankId) {
-//     struct artsSmartDb *db = artsRouteTableLookupItem(guid);
+//     struct artsDb *db = artsRouteTableLookupItem(guid);
 //     if (db) {
 //       void *data = (void *)(((char *)(db + 1)) + offset);
 //       void *ptr = artsMalloc(size);
@@ -521,37 +521,37 @@
 //     } else {
 //       assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
 //       PRINTF("GETTING OO: %u From: %p\n", 0, NULL);
-//       artsOutOfOrderGetFromSmartDb(edtGuid, guid, slot, offset, size);
+//       artsOutOfOrderGetFromDb(edtGuid, guid, slot, offset, size);
 //     }
 //   } else {
 //     DPRINTF("Sending to %u\n", rank);
 //     assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
-//     artsRemoteGetFromSmartDb(edtGuid, guid, slot, offset, size, rank);
+//     artsRemoteGetFromDb(edtGuid, guid, slot, offset, size, rank);
 //   }
 // }
 
-// void artsGetFromSmartDb(artsGuid_t edtGuid, artsGuid_t guid, unsigned int slot,
+// void artsGetFromDb(artsGuid_t edtGuid, artsGuid_t guid, unsigned int slot,
 //                         unsigned int offset, unsigned int size) {
 //   ARTSEDTCOUNTERTIMERSTART(getDbCounter);
 //   unsigned int rank = artsGuidGetRank(guid);
-//   internalGetFromSmartDb(edtGuid, guid, slot, offset, size, rank);
+//   internalGetFromDb(edtGuid, guid, slot, offset, size, rank);
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(getDbCounter);
 // }
 
-// void artsGetFromSmartDbAt(artsGuid_t edtGuid, artsGuid_t guid,
+// void artsGetFromDbAt(artsGuid_t edtGuid, artsGuid_t guid,
 //                           unsigned int slot, unsigned int offset,
 //                           unsigned int size, unsigned int rank) {
 //   ARTSEDTCOUNTERTIMERSTART(getDbCounter);
-//   internalGetFromSmartDb(edtGuid, guid, slot, offset, size, rank);
+//   internalGetFromDb(edtGuid, guid, slot, offset, size, rank);
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(getDbCounter);
 // }
 
-// void internalPutInSmartDb(void *ptr, artsGuid_t edtGuid, artsGuid_t guid,
+// void internalPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t guid,
 //                           unsigned int slot, unsigned int offset,
 //                           unsigned int size, artsGuid_t epochGuid,
 //                           unsigned int rank) {
 //   if (rank == artsGlobalRankId) {
-//     struct artsSmartDb *db = artsRouteTableLookupItem(guid);
+//     struct artsDb *db = artsRouteTableLookupItem(guid);
 //     if (db) {
 //       // Do this so when we increment finished we can check the term status
 //       incrementQueueEpoch(epochGuid);
@@ -567,18 +567,18 @@
 //     } else {
 //       void *cpyPtr = artsMalloc(size);
 //       memcpy(cpyPtr, ptr, size);
-//       artsOutOfOrderPutInSmartDb(cpyPtr, edtGuid, guid, slot, offset, size,
+//       artsOutOfOrderPutInDb(cpyPtr, edtGuid, guid, slot, offset, size,
 //                                  epochGuid);
 //     }
 //   } else {
 //     void *cpyPtr = artsMalloc(size);
 //     memcpy(cpyPtr, ptr, size);
-//     artsRemotePutInSmartDb(cpyPtr, edtGuid, guid, slot, offset, size, epochGuid,
+//     artsRemotePutInDb(cpyPtr, edtGuid, guid, slot, offset, size, epochGuid,
 //                            rank);
 //   }
 // }
 
-// void artsPutInSmartDbAt(void *ptr, artsGuid_t edtGuid, artsGuid_t guid,
+// void artsPutInDbAt(void *ptr, artsGuid_t edtGuid, artsGuid_t guid,
 //                         unsigned int slot, unsigned int offset,
 //                         unsigned int size, unsigned int rank) {
 //   ARTSEDTCOUNTERTIMERSTART(putDbCounter);
@@ -586,11 +586,11 @@
 //   DPRINTF("EPOCH %lu\n", epochGuid);
 //   incrementActiveEpoch(epochGuid);
 //   globalShutdownGuidIncActive();
-//   internalPutInSmartDb(ptr, edtGuid, guid, slot, offset, size, epochGuid, rank);
+//   internalPutInDb(ptr, edtGuid, guid, slot, offset, size, epochGuid, rank);
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(putDbCounter);
 // }
 
-// void artsPutInSmartDb(void *ptr, artsGuid_t edtGuid, artsGuid_t guid,
+// void artsPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t guid,
 //                       unsigned int slot, unsigned int offset,
 //                       unsigned int size) {
 //   ARTSEDTCOUNTERTIMERSTART(putDbCounter);
@@ -598,16 +598,16 @@
 //   artsGuid_t epochGuid = artsGetCurrentEpochGuid();
 //   incrementActiveEpoch(epochGuid);
 //   globalShutdownGuidIncActive();
-//   internalPutInSmartDb(ptr, edtGuid, guid, slot, offset, size, epochGuid, rank);
+//   internalPutInDb(ptr, edtGuid, guid, slot, offset, size, epochGuid, rank);
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(putDbCounter);
 // }
 
-// void artsPutInSmartDbEpoch(void *ptr, artsGuid_t epochGuid, artsGuid_t guid,
+// void artsPutInDbEpoch(void *ptr, artsGuid_t epochGuid, artsGuid_t guid,
 //                            unsigned int offset, unsigned int size) {
 //   ARTSEDTCOUNTERTIMERSTART(putDbCounter);
 //   unsigned int rank = artsGuidGetRank(guid);
 //   incrementActiveEpoch(epochGuid);
 //   globalShutdownGuidIncActive();
-//   internalPutInSmartDb(ptr, NULL_GUID, guid, 0, offset, size, epochGuid, rank);
+//   internalPutInDb(ptr, NULL_GUID, guid, 0, offset, size, epochGuid, rank);
 //   ARTSEDTCOUNTERTIMERENDINCREMENT(putDbCounter);
 // }

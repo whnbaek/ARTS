@@ -215,17 +215,6 @@ struct artsEvent {
   struct artsDependentList dependent;
 } __attribute__((aligned));
 
-struct artsSmartDb {
-  struct artsHeader header;
-  artsGuid_t guid;
-  volatile unsigned int copyCount;
-  volatile unsigned int reader;
-  volatile unsigned int writer;
-  unsigned int timeStamp;
-  void *dbList;
-  struct artsPersistentEvent *event;
-} __attribute__((aligned));
-
 typedef struct {
   unsigned int size;
   unsigned int index;

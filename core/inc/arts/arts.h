@@ -409,15 +409,15 @@ artsGuid_t artsDbCopyToNewType(artsGuid_t oldGuid, artsType_t newType);
 
 #ifdef SMART_DB
 // Increment the latch count associated with the persistent event of the DB
-void artsSmartDbIncrementLatch(artsGuid_t guid);
+void artsDbIncrementLatch(artsGuid_t guid);
 
 // Decrement the latch count associated with the persistent event of the DB
-void artsSmartDbDecrementLatch(artsGuid_t guid);
+void artsDbDecrementLatch(artsGuid_t guid);
 
 // Adds a dependence from a the persistent event associated with the DB to an
 // EDT slot.
-void artsSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
-                              uint32_t edtSlot);
+void artsDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+                         uint32_t edtSlot);
 #endif
 
 /*Epoch************************************************************************/

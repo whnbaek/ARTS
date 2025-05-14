@@ -134,22 +134,22 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     break;
   }
 #ifdef SMART_DB
-  case ARTS_REMOTE_SMART_DB_INCREMENT_LATCH_MSG: {
+  case ARTS_REMOTE_DB_INCREMENT_LATCH_MSG: {
     struct artsRemoteGuidOnlyPacket *pack =
         (struct artsRemoteGuidOnlyPacket *)(packet);
-    artsSmartDbIncrementLatch(pack->guid);
+    artsDbIncrementLatch(pack->guid);
     break;
   }
-  case ARTS_REMOTE_SMART_DB_DECREMENT_LATCH_MSG: {
+  case ARTS_REMOTE_DB_DECREMENT_LATCH_MSG: {
     struct artsRemoteGuidOnlyPacket *pack =
         (struct artsRemoteGuidOnlyPacket *)(packet);
-    artsSmartDbDecrementLatch(pack->guid);
+    artsDbDecrementLatch(pack->guid);
     break;
   }
-  case ARTS_REMOTE_SMART_DB_ADD_DEPENDENCE_MSG: {
-    struct artsRemoteSmartDbAddDependencePacket *pack =
-        (struct artsRemoteSmartDbAddDependencePacket *)(packet);
-    artsSmartDbAddDependence(pack->dbSrc, pack->edtDest, pack->edtSlot);
+  case ARTS_REMOTE_DB_ADD_DEPENDENCE_MSG: {
+    struct artsRemoteDbAddDependencePacket *pack =
+        (struct artsRemoteDbAddDependencePacket *)(packet);
+    artsDbAddDependence(pack->dbSrc, pack->edtDest, pack->edtSlot);
     break;
   }
 #endif

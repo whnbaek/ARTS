@@ -399,32 +399,32 @@ void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid, uint32_t slot,
                              sizeof(packet));
 }
 
-void artsRemoteSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
-                                    uint32_t edtSlot) {
-  struct artsRemoteSmartDbAddDependencePacket packet;
+void artsRemoteDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+                               uint32_t edtSlot) {
+  struct artsRemoteDbAddDependencePacket packet;
   packet.dbSrc = dbSrc;
   packet.edtDest = edtDest;
   packet.edtSlot = edtSlot;
   artsFillPacketHeader(&packet.header, sizeof(packet),
-                       ARTS_REMOTE_SMART_DB_ADD_DEPENDENCE_MSG);
+                       ARTS_REMOTE_DB_ADD_DEPENDENCE_MSG);
   artsRemoteSendRequestAsync(artsGuidGetRank(dbSrc), (char *)&packet,
                              sizeof(packet));
 }
 
-void artsRemoteSmartDbIncrementLatch(artsGuid_t db) {
+void artsRemoteDbIncrementLatch(artsGuid_t db) {
   struct artsRemoteGuidOnlyPacket packet;
   packet.guid = db;
   artsFillPacketHeader(&packet.header, sizeof(packet),
-                       ARTS_REMOTE_SMART_DB_INCREMENT_LATCH_MSG);
+                       ARTS_REMOTE_DB_INCREMENT_LATCH_MSG);
   artsRemoteSendRequestAsync(artsGuidGetRank(db), (char *)&packet,
                              sizeof(packet));
 }
 
-void artsRemoteSmartDbDecrementLatch(artsGuid_t db) {
+void artsRemoteDbDecrementLatch(artsGuid_t db) {
   struct artsRemoteGuidOnlyPacket packet;
   packet.guid = db;
   artsFillPacketHeader(&packet.header, sizeof(packet),
-                       ARTS_REMOTE_SMART_DB_DECREMENT_LATCH_MSG);
+                       ARTS_REMOTE_DB_DECREMENT_LATCH_MSG);
   artsRemoteSendRequestAsync(artsGuidGetRank(db), (char *)&packet,
                              sizeof(packet));
 }
