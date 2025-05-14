@@ -37,29 +37,10 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
-set(system_inc
-    ${CORE_INCLUDE_DIR}/artsAbstractMachineModel.h
-    ${CORE_INCLUDE_DIR}/artsAtomics.h
-    ${CORE_INCLUDE_DIR}/artsDebug.h
-    ${CORE_INCLUDE_DIR}/artsThreads.h
-    ${CORE_INCLUDE_DIR}/artsTMTLite.h
-)
+file(GLOB system_src "*.c")
 
-set(system_src
-    artsAbstractMachineModel.c
-    artsAtomics.c
-    artsMallocStandard.c
-    artsDebugFunctions.c
-    artsPrintf.c
-    artsTimer.c
-    artsPthreadLayer.c
-    artsTMT.c
-    artsTMTLite.c
-)
-
-add_library(system OBJECT ${system_src} )
+add_library(system OBJECT ${system_src})
 if(HWLOC)
-set(LIBS arts ${Hwloc_LIBRARIES})
-target_link_libraries(system ${LIBS})
+    set(LIBS arts ${Hwloc_LIBRARIES})
+    target_link_libraries(system ${LIBS})
 endif()
-install(FILES ${system_inc} DESTINATION include)

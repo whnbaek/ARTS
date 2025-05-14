@@ -1,7 +1,2 @@
-set(server_src
-    artsServer.c
-    artsRemoteFunctions.c
-    artsRuntime.c
-)
-
-add_library(runtime_server OBJECT ${server_src}) 
+file(GLOB network_src "*.c")
+add_library(runtime_network OBJECT ${network_src}) 

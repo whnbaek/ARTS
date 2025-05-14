@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 uint64_t start = 0;
 

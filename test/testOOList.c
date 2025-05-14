@@ -45,7 +45,7 @@
 #endif
 #include <sys/types.h>
 #include <unistd.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsAtomics.h"
 #include "artsOutOfOrderList.h"
 #include "artsDebug.h"

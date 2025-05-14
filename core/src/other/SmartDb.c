@@ -38,7 +38,7 @@
 ******************************************************************************/
 
 // #include "artsSmartDb.h"x
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsDbFunctions.h"
 #include "artsEdtFunctions.h"
 #include "artsGlobals.h"

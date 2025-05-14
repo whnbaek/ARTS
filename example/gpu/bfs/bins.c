@@ -42,7 +42,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsArrayList.h"
 
 artsArrayList ** list;

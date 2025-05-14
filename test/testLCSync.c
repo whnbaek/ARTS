@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsGpuRuntime.h"
 
 __global__ void temp(uint32_t paramc, uint64_t * paramv, uint32_t depc, artsEdtDep_t depv[])

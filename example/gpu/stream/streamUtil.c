@@ -40,7 +40,7 @@
 #include <stdlib.h>
 #include "cublas_v2.h"
 #include <cuda_runtime.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsGpuRuntime.h"
 #include "streamUtil.h"
 

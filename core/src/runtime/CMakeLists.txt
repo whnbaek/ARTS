@@ -37,7 +37,10 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
+file(GLOB runtime_src "*.c")
+add_library(runtime_main OBJECT ${runtime_src})
+
 add_subdirectory(compute)
 add_subdirectory(memory)
-add_subdirectory(server)
 add_subdirectory(sync)
+add_subdirectory(network)

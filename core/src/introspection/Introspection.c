@@ -40,7 +40,7 @@
 #include "arts/introspection/Introspection.h"
 #include "arts/utils/Atomics.h"
 #include "arts/runtime/Globals.h"
-#include "arts/runtime/server/RemoteFunctions.h"
+#include "arts/runtime/network/RemoteFunctions.h"
 #include "arts/system/Debug.h"
 #include <sys/stat.h>
 

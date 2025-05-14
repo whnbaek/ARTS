@@ -81,7 +81,7 @@
  * This core is used by both the single_cpu and star_single_cpu tests.
  */
 
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsGpuRuntime.h"
 #include "artsGuid.h"
 #include "artsGlobals.h"

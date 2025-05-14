@@ -44,7 +44,7 @@
 #include "arts/runtime/compute/EdtFunctions.h"
 #include "arts/runtime/memory/ArrayDb.h"
 #include "arts/runtime/memory/DbFunctions.h"
-#include "arts/runtime/server/RemoteFunctions.h"
+#include  "arts/runtime/network/RemoteFunctions.h"
 #include "arts/runtime/sync/EventFunctions.h"
 #include "arts/runtime/sync/TerminationDetection.h"
 #include "arts/utils/Atomics.h"

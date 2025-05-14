@@ -37,15 +37,15 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 
-#include "artsRouteTable.h"
-#include "artsAtomics.h"
-#include "artsCounter.h"
-#include "artsDbFunctions.h"
-#include "artsDbList.h"
-#include "artsDebug.h"
-#include "artsGlobals.h"
-#include "artsGuid.h"
-#include "artsOutOfOrder.h"
+#include "arts/gas/RouteTable.h"
+#include "arts/gas/Guid.h"
+#include "arts/gas/OutOfOrder.h"
+#include "arts/introspection/Counter.h"
+#include "arts/runtime/Globals.h"
+#include "arts/runtime/memory/DbFunctions.h"
+#include "arts/runtime/memory/DbList.h"
+#include "arts/system/Debug.h"
+#include "arts/utils/Atomics.h"
 
 #define DPRINTF
 // #define DPRINTF(...) PRINTF(__VA_ARGS__)
@@ -695,7 +695,7 @@ bool artsRouteTableAddOO(artsGuid_t key, void *data, bool inc) {
     if (inc)
       incItem(item, 1, item->key, artsGetRouteTable(key));
     bool res = artsOutOfOrderListAddItem(&item->ooList, data);
-    
+
     return res;
   }
   if (inc)

@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 void printMatrix(unsigned int rowSize, double * mat)
 {

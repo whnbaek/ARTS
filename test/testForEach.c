@@ -39,7 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 unsigned int elemsPerNode = 4;
 artsArrayDb_t * array = NULL;

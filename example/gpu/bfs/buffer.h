@@ -48,7 +48,7 @@ extern "C" {
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsGraph.h"
 #include "artsGlobals.h"
 #include "artsGpuRuntime.h"

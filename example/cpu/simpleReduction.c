@@ -39,7 +39,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 unsigned int numDbs = 0;
 artsGuid_t reductionGuid = NULL_GUID;

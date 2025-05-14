@@ -38,7 +38,7 @@
 ###############################################################################
 
 set(distribution_src
-    blockDistribution.c
+    BlockDistribution.c
 )
 
 add_library(distribution OBJECT ${distribution_src})

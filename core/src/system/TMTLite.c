@@ -48,17 +48,17 @@
 #include <pthread.h>
 #include <string.h>
 
-#include "artsGlobals.h"
-#include "artsAtomics.h"
-#include "artsDeque.h"
-#include "artsDbFunctions.h"
-#include "artsEdtFunctions.h"
-#include "artsRemoteFunctions.h"
-#include "artsThreads.h"
-#include "artsDebug.h"
-#include "artsTMT.h"
-#include "artsArrayList.h"
-#include "artsRuntime.h"
+#include "arts/runtime/Globals.h"
+#include "arts/utils/Atomics.h"
+#include "arts/utils/Deque.h"
+#include "arts/runtime/memory/DbFunctions.h"
+#include "arts/runtime/compute/EdtFunctions.h"
+#include "arts/runtime/network/RemoteFunctions.h"
+#include "arts/system/Threads.h"
+#include "arts/system/Debug.h"
+#include "arts/system/TMT.h"
+#include "arts/utils/ArrayList.h"
+#include "arts/runtime/Runtime.h"
 
 #define DPRINTF( ... )
 //#define DPRINTF( ... ) PRINTF( __VA_ARGS__ )

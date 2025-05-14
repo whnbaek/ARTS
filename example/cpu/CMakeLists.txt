@@ -37,13 +37,13 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
-include (CheckIncludeFiles)
-include (CheckSymbolExists)
+include(CheckIncludeFiles)
+include(CheckSymbolExists)
 
 set(LIBS arts ${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB} ${CUDA_LIBRARIES} ${CUBLAS_LIBRARIES})
 
-CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
-check_symbol_exists (alloca alloca.h HAVE_ALLOCA)
+CHECK_INCLUDE_FILES(alloca.h HAVE_ALLOCA_H)
+check_symbol_exists(alloca alloca.h HAVE_ALLOCA)
 
 if(HAVE_ALLOCA)
   add_definitions(-DHAVE_ALLOCA)

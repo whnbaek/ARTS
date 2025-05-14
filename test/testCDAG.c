@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 unsigned int numReads = 0;
 unsigned int numWrites = 0;
 unsigned int numDynamicReads = 0;

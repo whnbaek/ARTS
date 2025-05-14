@@ -36,14 +36,14 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#include "memory/artsDbList.h"
-#include "compute/artsEdtFunctions.h"
-#include "server/artsRemoteFunctions.h"
-#include "server/artsRuntime.h"
-#include "system/artsAtomics.h"
-#include "runtime/artsGlobals.h"
-#include "gas/artsOutOfOrder.h"
-#include "gas/artsRouteTable.h"
+#include "arts/runtime/memory/DbList.h"
+#include "arts/runtime/compute/EdtFunctions.h"
+#include "arts/runtime/network/RemoteFunctions.h"
+#include "arts/runtime/Runtime.h"
+#include "arts/utils/Atomics.h"
+#include "arts/runtime/Globals.h"
+#include "arts/gas/OutOfOrder.h"
+#include "arts/gas/RouteTable.h"
 
 #define writeSet 0x80000000
 #define exclusiveSet 0x40000000

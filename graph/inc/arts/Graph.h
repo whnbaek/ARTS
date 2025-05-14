@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,* 
+** implied, or assumes any legal liability or responsibility for the accuracy,*
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -43,10 +43,10 @@
 extern "C" {
 #endif
 
-#include "graphDefs.h"
-#include "blockDistribution.h"
-#include "artsEdgeVector.h"
-#include "csr.h"
+#include "arts/BlockDistribution.h"
+#include "arts/Csr.h"
+#include "arts/EdgeVector.h"
+#include "arts/GraphDefs.h"
 #ifdef __cplusplus
 }
 #endif

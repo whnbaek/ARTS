@@ -38,32 +38,32 @@
 ###############################################################################
 
 cmake_minimum_required(VERSION 3.8)
-project (arts LANGUAGES C CXX)
+project(arts LANGUAGES C CXX)
 
 #CMake Configuration
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "XL")
-   message("Using XL. Not loading new GLIBC")
+    message("Using XL. Not loading new GLIBC")
 else()
-   include(glibc)
-   CHECK_GLIBC_VERSION()
-   if(GLIBC_VERSION)
-      message("GLIBC Version Available: ${GLIBC_VERSION}")
-      if((${GLIBC_VERSION} VERSION_EQUAL 2.19) OR (${GLIBC_VERSION} VERSION_GREATER 2.19))
-          add_definitions(-DGLIBC_NEW)
-      endif()
-   endif()
+    include(glibc)
+    CHECK_GLIBC_VERSION()
+    if(GLIBC_VERSION)
+        message("GLIBC Version Available: ${GLIBC_VERSION}")
+        if((${GLIBC_VERSION} VERSION_EQUAL 2.19) OR (${GLIBC_VERSION} VERSION_GREATER 2.19))
+            add_definitions(-DGLIBC_NEW)
+        endif()
+    endif()
 endif()
 
 ## Compiler flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message("Debug Build")
-    set(CMAKE_C_FLAGS   "-Werror -O0 -g -fsanitize=address -fsanitize=signed-integer-overflow -fPIC -Wno-error=no-stringop-overflow")
+    set(CMAKE_C_FLAGS "-Werror -O0 -g -fsanitize=address -fsanitize=signed-integer-overflow -fPIC -Wno-error=no-stringop-overflow")
     set(CMAKE_CXX_FLAGS "-Werror -O0 -g -fsanitize=address -fsanitize=signed-integer-overflow -fPIC -Wno-error=no-stringop-overflow")
 else()
     message("Release Build")
-    set(CMAKE_C_FLAGS   "-std=gnu99 -O3 -g -ftree-vectorize -mtune=native -fPIC")
+    set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g -ftree-vectorize -mtune=native -fPIC")
     set(CMAKE_CXX_FLAGS " -O3 -g -ftree-vectorize -mtune=native -fPIC")
 endif()
 
@@ -137,8 +137,8 @@ endif()
 #<-------------------------------------------
 
 if(SIMPLE_ARCH MATCHES "1")
-   message("Using simple CAS2 adn BIT_TEST_SET")
-   add_definitions(-DSIMPLE_ARCH=1)
+    message("Using simple CAS2 adn BIT_TEST_SET")
+    add_definitions(-DSIMPLE_ARCH=1)
 endif()
 
 #DEFAULT SETTINGS

@@ -36,81 +36,49 @@
 ## WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 ## License for the specific language governing permissions and limitations
 ###############################################################################
-add_subdirectory(common)
-add_subdirectory(gas)
-add_subdirectory(introspection)
-add_subdirectory(network)
 add_subdirectory(system)
+add_subdirectory(utils)
+add_subdirectory(network)
 add_subdirectory(runtime)
+add_subdirectory(gas)
 add_subdirectory(gpu)
+add_subdirectory(introspection)
 
-set(main_inc
-    ${CORE_INCLUDE_DIR}/artsRT.h
-    ${CORE_INCLUDE_DIR}/arts.h
-    ${CORE_INCLUDE_DIR}/artsGlobals.h
-    ${CORE_INCLUDE_DIR}/artsConfig.h
-    ${CORE_INCLUDE_DIR}/shadAdapter.h
-)
+file(GLOB main_src "*.c")
 
-set(main_src
-    main.c
-    artsConfig.c
-    artsUtil.c
-)
-
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/system
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/gas
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/gpu
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/introspection
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/network
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/compute
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/memory
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/server
-    ${CMAKE_CURRENT_SOURCE_DIR}/../inc/runtime/sync
-)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../inc/arts)
 
 if(CUDA_FOUND)
-    add_library(arts STATIC ${main_inc} ${main_src}
+    add_library(arts STATIC ${main_src}
         $<TARGET_OBJECTS:gas>
         $<TARGET_OBJECTS:network>
         $<TARGET_OBJECTS:introspection>
-        $<TARGET_OBJECTS:runtime>
+        $<TARGET_OBJECTS:runtime_main>
+        $<TARGET_OBJECTS:runtime_compute>
+        $<TARGET_OBJECTS:runtime_memory>
+        $<TARGET_OBJECTS:runtime_sync>
+        $<TARGET_OBJECTS:runtime_network>
         $<TARGET_OBJECTS:system>
-        $<TARGET_OBJECTS:common>
-        $<TARGET_OBJECTS:gpu>
-    )
-    add_library(carts SHARED ${main_inc} ${main_src}
-        $<TARGET_OBJECTS:gas>
-        $<TARGET_OBJECTS:network>
-        $<TARGET_OBJECTS:introspection>
-        $<TARGET_OBJECTS:runtime>
-        $<TARGET_OBJECTS:system>
-        $<TARGET_OBJECTS:common>
+        $<TARGET_OBJECTS:utils>
         $<TARGET_OBJECTS:gpu>
     )
 else()
-    # add_library(arts STATIC ${main_inc} ${main_src} 
-    #                 $<TARGET_OBJECTS:gas> 
-    #                 $<TARGET_OBJECTS:network> 
-    #                 $<TARGET_OBJECTS:introspection> 
-    #                 $<TARGET_OBJECTS:runtime> 
-    #                 $<TARGET_OBJECTS:system> 
-    #                 $<TARGET_OBJECTS:common>
-    #             )
-    add_library(arts SHARED ${main_inc} ${main_src}
+    add_library(arts SHARED ${main_src}
         $<TARGET_OBJECTS:gas>
         $<TARGET_OBJECTS:network>
         $<TARGET_OBJECTS:introspection>
-        $<TARGET_OBJECTS:runtime>
+        $<TARGET_OBJECTS:runtime_main>
+        $<TARGET_OBJECTS:runtime_compute>
+        $<TARGET_OBJECTS:runtime_memory>
+        $<TARGET_OBJECTS:runtime_sync>
+        $<TARGET_OBJECTS:runtime_network>
         $<TARGET_OBJECTS:system>
-        $<TARGET_OBJECTS:common>
+        $<TARGET_OBJECTS:utils>
     )
     message("PATHS INSTALLED: " ${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB})
 endif()
 
-install(FILES ${main_inc} DESTINATION include)
+# Install all headers from inc/arts and its subdirectories, preserving structure
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../inc/arts/ DESTINATION include/arts FILES_MATCHING PATTERN "*.h")
+
 install(TARGETS arts ARCHIVE DESTINATION lib)
-# install(TARGETS carts ARCHIVE DESTINATION lib)

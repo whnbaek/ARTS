@@ -38,8 +38,8 @@
 ###############################################################################
 
 set(datastructure_src
-    artsEdgeVector.c
-    csr.c
+    EdgeVector.c
+    Csr.c
 )
 
 add_library(datastructures OBJECT ${datastructure_src})

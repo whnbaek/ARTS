@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 unsigned int elementsPerBlock = 0;
 unsigned int blocks = 0;

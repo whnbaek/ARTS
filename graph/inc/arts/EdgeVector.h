@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,* 
+** implied, or assumes any legal liability or responsibility for the accuracy,*
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -37,41 +37,27 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 
-#ifndef ARTS_BLOCK_DISTRIBUTION_H
-#define ARTS_BLOCK_DISTRIBUTION_H
+#ifndef ARTS_EDGE_VECTOR_H
+#define ARTS_EDGE_VECTOR_H
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "arts/GraphDefs.h"
 
-#include "graphDefs.h"
-#include "arts.h"
+#define EDGE_VEC_SZ 10000
 
 typedef struct {
-  graph_sz_t num_vertices; //Complete number of vertices
-  graph_sz_t num_edges; //Complete number of edges
-  graph_sz_t block_sz; //Standard block size
-  unsigned int num_blocks; //Total number of blocks
-  artsGuid_t graphGuid[]; //Guids for all the partitions
-} arts_block_dist_t;
+  edge_t *edge_array;
+  graph_sz_t used;
+  graph_sz_t size;
+} artsEdgeVector;
 
-arts_block_dist_t * initBlockDistributionBlock(graph_sz_t n, graph_sz_t m, unsigned int numBlocks, artsType_t dbType);
-arts_block_dist_t * initBlockDistribution(graph_sz_t n, graph_sz_t m);
-arts_block_dist_t * initBlockDistributionWithCmdLineArgs(int argc, char** argv);
-void freeDistribution(arts_block_dist_t* _dist);
-
-unsigned int getNumLocalBlocks(arts_block_dist_t* _dist);
-
-graph_sz_t getBlockSizeForPartition(partition_t index, const arts_block_dist_t* const _dist);
-
-partition_t getOwnerDistr(vertex_t v, const arts_block_dist_t* const _dist);
-vertex_t partitionStartDistr(partition_t index, const arts_block_dist_t* const _dist);
-vertex_t partitionEndDistr(partition_t index, const arts_block_dist_t* const _dist);
-vertex_t getVertexFromLocalDistr(partition_t local, local_index_t u, const arts_block_dist_t* const _dist);
-local_index_t getLocalIndexDistr(vertex_t v, const arts_block_dist_t* const _dist);
-
-artsGuid_t getGuidForVertexDistr(vertex_t v, const arts_block_dist_t* const _dist);
-artsGuid_t getGuidForPartitionDistr(const arts_block_dist_t* const _dist, partition_t index);
-
+void initEdgeVector(artsEdgeVector *v, graph_sz_t initialSize);
+void pushBackEdge(artsEdgeVector *v, vertex_t s, vertex_t t, edge_data_t d);
+void freeEdgeVector(artsEdgeVector *v);
+void sortBySource(artsEdgeVector *v);
+void sortBySourceAndTarget(artsEdgeVector *v);
+void printEdgeVector(const artsEdgeVector *v);
 #ifdef __cplusplus
 }
 #endif

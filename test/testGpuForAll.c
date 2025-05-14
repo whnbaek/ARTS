@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsGpuRuntime.h"
 #include "cublas_v2.h"
 #include "cublas_api.h"

@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 #define MATSIZE 3
 #define TILE 1
@@ -304,7 +304,7 @@ int main(int argc, char** argv)
 
 //#include <stdio.h>
 //#include <stdlib.h>
-//#include "arts.h"
+//#include "arts/arts.h"
 //
 //#define NUMGUIDS 128
 //

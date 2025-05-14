@@ -36,8 +36,8 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#include "arts.h"
-#include "artsRT.h"
+#include "arts/arts.h"
+#include "arts/runtime/RT.h"
 #include <stdio.h>
 #include <stdlib.h>
 #define __USE_GNU
@@ -80,7 +80,6 @@ void artsMain(int argc, char **argv) {
   }
   artsWaitOnHandle(epochGuid);
 }
-
 
 int main(int argc, char **argv) {
   artsRT(argc, argv);

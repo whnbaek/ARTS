@@ -42,10 +42,10 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
-#include "arts.h"
-#include "artsGraph.h"
-#include "artsTerminationDetection.h"
-#include "shadAdapter.h"
+#include "arts/arts.h"
+#include "arts/Graph.h"
+#include "arts/runtime/sync/TerminationDetection.h"
+#include "arts/runtime/compute/ShadAdapter.h"
 
 unsigned int introStart = 5;
 

@@ -4,7 +4,7 @@
 ** nor the United States Department of Energy, nor Battelle, nor any of      **
 ** their employees, nor any jurisdiction or organization that has cooperated **
 ** in the development of these materials, makes any warranty, express or     **
-** implied, or assumes any legal liability or responsibility for the accuracy,* 
+** implied, or assumes any legal liability or responsibility for the accuracy,*
 ** completeness, or usefulness or any information, apparatus, product,       **
 ** software, or process disclosed, or represents that its use would not      **
 ** infringe privately owned rights.                                          **
@@ -36,30 +36,14 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
+#include "arts/arts.h"
+#include <time.h>
 
-#ifndef ARTS_EDGE_VECTOR_H
-#define ARTS_EDGE_VECTOR_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "graphDefs.h"
+#define NANOSECS 1000000000
 
-#define EDGE_VEC_SZ 10000
-
-typedef struct {
-    edge_t * edge_array;
-    graph_sz_t used;
-    graph_sz_t size;
-} artsEdgeVector;
-
-void initEdgeVector(artsEdgeVector *v, graph_sz_t initialSize);
-void pushBackEdge(artsEdgeVector *v, vertex_t s, vertex_t t, edge_data_t d);
-void freeEdgeVector(artsEdgeVector *v);
-void sortBySource(artsEdgeVector *v);
-void sortBySourceAndTarget(artsEdgeVector *v);
-void printEdgeVector(const artsEdgeVector *v);
-#ifdef __cplusplus
+uint64_t artsGetTimeStamp() {
+  struct timespec res;
+  clock_gettime(CLOCK_REALTIME, &res);
+  uint64_t timeRes = res.tv_sec * NANOSECS + res.tv_nsec;
+  return timeRes;
 }
-#endif
-
-#endif

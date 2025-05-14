@@ -37,19 +37,7 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
-set(gas_inc
-    ${CORE_INCLUDE_DIR}/arts/gas/Guid.h
-    ${CORE_INCLUDE_DIR}/arts/gas/OutOfOrder.h
-    ${CORE_INCLUDE_DIR}/arts/gas/OutOfOrderList.h
-    ${CORE_INCLUDE_DIR}/arts/gas/RouteTable.h
-)
 
-set(gas_src
-    arts/gas/Guid.c
-    arts/gas/OutOfOrder.c
-    arts/gas/OutOfOrderList.c
-    arts/gas/RouteTable.c
-)
 
-add_library(gas OBJECT ${gas_inc} ${gas_src} )
-install(FILES ${gas_inc} DESTINATION include)
+file(GLOB gas_src "*.c")
+add_library(gas OBJECT ${gas_src})

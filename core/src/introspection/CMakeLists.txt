@@ -37,15 +37,5 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
-set(introspection_inc
-    ${CORE_INCLUDE_DIR}/arts/introspection/Counter.h
-    ${CORE_INCLUDE_DIR}/arts/introspection/Introspection.h
-)
-
-set(introspection_src
-    arts/introspection/Counter.c
-    arts/introspection/Introspection.c
-)
-
-add_library(introspection OBJECT ${introspection_inc} ${introspection_src})
-install(FILES ${introspection_inc} DESTINATION include)
+file(GLOB introspection_src "*.c")
+add_library(introspection OBJECT ${introspection_src})

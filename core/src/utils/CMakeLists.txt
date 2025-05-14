@@ -37,27 +37,23 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
+set(utils_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+
 if(DEQUE MATCHES "chase_lev")
-    set(common_lib_src ${common_lib_src} chaseLevDequeSimple.c)
+    set(utils_src_exclude "${utils_dir}/ChaseLevDequePriority.c")
 elseif(DEQUE MATCHES "priority")
-    set(common_lib_src ${common_lib_src} chaseLevDequePriority.c)
+    set(utils_src_exclude "${utils_dir}/ChaseLevDequeSimple.c")
 else()
     message(FATAL_ERROR "Unsupported runtime deque chosen.")
 endif()
 
-set(common_inc
-    ${CORE_INCLUDE_DIR}/artsDeque.h
-    ${CORE_INCLUDE_DIR}/artsQueue.h
-    ${CORE_INCLUDE_DIR}/artsArrayList.h
-    ${CORE_INCLUDE_DIR}/artsLinkList.h
-)
+file(GLOB utils_src_local "${utils_dir}/*.c")
 
-set(common_src
-    ${common_lib_src}
-    artsLinkList.c
-    artsArrayList.c
-    artsQueue.c
-)
+message(STATUS "Globbed utils_src_local: ${utils_src_local}")
+message(STATUS "Excluding: ${utils_src_exclude}")
 
-add_library(common OBJECT ${common_inc} ${common_src})
-install(FILES ${common_inc} DESTINATION include)
+list(REMOVE_ITEM utils_src_local ${utils_src_exclude})
+
+message(STATUS "Final utils_src_local: ${utils_src_local}")
+
+add_library(utils OBJECT ${utils_src_local})

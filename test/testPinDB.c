@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 unsigned int node = 0;
 artsGuid_t someDbGuid = NULL_GUID;

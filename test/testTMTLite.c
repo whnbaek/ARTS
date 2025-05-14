@@ -38,10 +38,10 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
-#include "shadAdapter.h"
-#include "artsTMTLite.h"
-#include "artsAtomics.h"
+#include "arts/arts.h"
+#include "arts/runtime/compute/ShadAdapter.h"
+#include "arts/system/TMTLite.h"
+#include "arts/utils/Atomics.h"
 #include "pthread.h"
 
 #define EDTCOUNT 2

@@ -39,7 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "arts.h"
+#include "arts/arts.h"
 #include "artsGpuRuntime.h"
 
 #define ARRAYSIZE 1024*1024

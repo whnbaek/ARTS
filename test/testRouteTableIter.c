@@ -39,10 +39,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
-#include "artsRouteTable.h"
-#include "artsGlobals.h"
-#include "artsAtomics.h"
+#include "arts/arts.h"
+#include "arts/gas/RouteTable.h"
+#include "arts/runtime/Globals.h"
+#include "arts/utils/Atomics.h"
 
 #define MYSIZE 10
 

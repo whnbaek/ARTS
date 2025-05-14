@@ -38,7 +38,7 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include "arts.h"
+#include "arts/arts.h"
 
 artsGuid_t dbDestGuid = NULL_GUID;
 artsGuid_t shutdownGuid = NULL_GUID;
