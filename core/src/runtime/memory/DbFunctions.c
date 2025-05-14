@@ -38,6 +38,7 @@
 ******************************************************************************/
 
 #include "arts/runtime/memory/DbFunctions.h"
+#include "arts/arts.h"
 #include "arts/gas/Guid.h"
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gas/RouteTable.h"
@@ -112,20 +113,20 @@ void artsDbCreateInternal(artsGuid_t guid, void *addr, uint64_t size,
     void *shadowCopy = (void *)(((char *)addr) + packetSize);
     memcpy(shadowCopy, addr, sizeof(struct artsDb));
   }
+#ifdef SMART_DB
+  dbRes->eventGuid = artsPersistentEventCreate(artsGuidGetRank(guid), 0, guid);
+#endif
 }
 
 artsGuid_t artsDbCreateRemote(unsigned int route, uint64_t size,
                               artsType_t mode) {
   ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
   artsGuid_t guid = artsGuidCreateForRank(route, mode);
-  //    void * ptr = artsMalloc(sizeof(struct artsDb));
   void *ptr = artsDbMalloc(mode, sizeof(struct artsDb));
   struct artsDb *db = (struct artsDb *)ptr;
   db->header.size = size + sizeof(struct artsDb);
   db->dbList = (mode == ARTS_DB_PIN) ? (void *)0 : (void *)1;
 
-  //    artsRemoteMemoryMove(route, guid, ptr, sizeof(struct artsDb),
-  //    ARTS_REMOTE_DB_SEND_MSG, artsFree);
   artsRemoteMemoryMove(route, guid, ptr, sizeof(struct artsDb),
                        ARTS_REMOTE_DB_SEND_MSG, artsDbFree);
   ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
@@ -182,7 +183,6 @@ void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
     unsigned int dbSize = size + sizeof(struct artsDb);
 
     ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-    //        ptr = artsMalloc(dbSize);
     ptr = artsDbMalloc(mode, dbSize);
     ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
     if (ptr) {
@@ -292,8 +292,8 @@ bool artsDbRenameWithGuid(artsGuid_t newGuid, artsGuid_t oldGuid) {
     struct artsDb *dbRes = artsRouteTableLookupItem(oldGuid);
     if (dbRes != NULL) {
       dbRes->guid = newGuid;
-      artsRouteTableHideItem(oldGuid); // This is only being done by the
-                                       // owner...
+      // This is only being done by the owner...
+      artsRouteTableHideItem(oldGuid);
       if (artsRouteTableAddItemRace(dbRes, newGuid, artsGlobalRankId, false)) {
         DPRINTF("RUNNING OO %lu\n");
         artsRouteTableFireOO(newGuid, artsOutOfOrderHandler);
@@ -346,8 +346,34 @@ void artsDbDestroySafe(artsGuid_t guid, bool remote) {
     artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
 }
 
-/**********************DB MEMORY MODEL*************************************/
+#ifdef SMART_DB
+void artsSmartDbIncrementLatch(artsGuid_t guid) {
+  struct artsDb *dbRes = artsRouteTableLookupItem(guid);
+  if (dbRes != NULL)
+    artsPersistentEventIncrementLatch(dbRes->eventGuid);
+  else
+    artsRemoteSmartDbIncrementLatch(guid);
+}
 
+void artsSmartDbDecrementLatch(artsGuid_t guid) {
+  struct artsDb *dbRes = artsRouteTableLookupItem(guid);
+  if (dbRes != NULL)
+    artsPersistentEventDecrementLatch(dbRes->eventGuid);
+  else
+    artsRemoteSmartDbDecrementLatch(guid);
+}
+
+void artsSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+                              uint32_t edtSlot) {
+  struct artsDb *dbRes = artsRouteTableLookupItem(dbSrc);
+  if (dbRes != NULL)
+    artsAddDependenceToPersistentEvent(dbRes->eventGuid, edtDest, edtSlot);
+  else
+    artsRemoteSmartDbAddDependence(dbSrc, edtDest, edtSlot);
+}
+#endif
+
+/**********************DB MEMORY MODEL*************************************/
 // Side Effects: edt depcNeeded will be incremented, ptr will be updated,
 //   and launches out of order handleReadyEdt
 // Returns false on out of order and true otherwise
@@ -380,8 +406,6 @@ void acquireDbs(struct artsEdt *edt) {
         break;
       }
       case ARTS_DB_PIN: {
-        //                    if(artsIsGuidLocal(depv[i].guid))
-        //                    {
         int validRank = -1;
         struct artsDb *dbTemp =
             artsRouteTableLookupDb(depv[i].guid, &validRank, true);
@@ -422,7 +446,6 @@ void acquireDbs(struct artsEdt *edt) {
       case ARTS_DB_LC:
       case ARTS_DB_READ:
       case ARTS_DB_WRITE: {
-        // PRINTF("- DB_NO_PIN: %u\n", depv[i].guid);
         // Owner Rank
         if (owner == artsGlobalRankId) {
           int validRank = -1;
@@ -488,13 +511,8 @@ void acquireDbs(struct artsEdt *edt) {
         break;
       }
 
-      if (dbFound) {
+      if (dbFound)
         depv[i].ptr = dbFound + 1;
-        // printf("DB %u found %6.2f - typeName:%s\n", (unsigned)depv[i].guid,
-        //        *((float *)depv[i].ptr), getTypeName(depv[i].mode));
-        // PRINTF("Setting[%u]: %p %s - %d\n", i, depv[i].ptr,
-        //        getTypeName(depv[i].mode), *((int *)depv[i].ptr));
-      }
       // Shouldn't there be an else return here...
     } else {
       artsAtomicSub(&edt->depcNeeded, 1U);
@@ -621,11 +639,8 @@ void internalPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
       globalShutdownGuidIncQueue();
       void *data = (void *)(((char *)(db + 1)) + offset);
       memcpy(data, ptr, size);
-      DPRINTF("PUTTING %u From: %p\n", *((unsigned int *)data), data);
-      if (edtGuid != NULL_GUID) {
+      if (edtGuid != NULL_GUID)
         artsSignalEdt(edtGuid, slot, dbGuid);
-      }
-      DPRINTF("FINISHING PUT %lu\n", epochGuid);
       incrementFinishedEpoch(epochGuid);
       globalShutdownGuidIncFinished();
       artsUpdatePerformanceMetric(artsPutBW, artsThread, size, false);

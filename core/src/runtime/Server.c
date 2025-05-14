@@ -127,11 +127,32 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     break;
   }
   case ARTS_REMOTE_PERSISTENT_EVENT_SATISFY_SLOT_MSG: {
-    struct artsRemoteEventSatisfySlotPacket *pack =
-        (struct artsRemoteEventSatisfySlotPacket *)(packet);
-    artsPersistentEventSatisfy(pack->event, pack->db, pack->slot, true);
+    struct artsRemotePersistentEventSatisfySlotPacket *pack =
+        (struct artsRemotePersistentEventSatisfySlotPacket *)(packet);
+
+    artsPersistentEventSatisfy(pack->event, pack->slot, pack->lock);
     break;
   }
+#ifdef SMART_DB
+  case ARTS_REMOTE_SMART_DB_INCREMENT_LATCH_MSG: {
+    struct artsRemoteGuidOnlyPacket *pack =
+        (struct artsRemoteGuidOnlyPacket *)(packet);
+    artsSmartDbIncrementLatch(pack->guid);
+    break;
+  }
+  case ARTS_REMOTE_SMART_DB_DECREMENT_LATCH_MSG: {
+    struct artsRemoteGuidOnlyPacket *pack =
+        (struct artsRemoteGuidOnlyPacket *)(packet);
+    artsSmartDbDecrementLatch(pack->guid);
+    break;
+  }
+  case ARTS_REMOTE_SMART_DB_ADD_DEPENDENCE_MSG: {
+    struct artsRemoteSmartDbAddDependencePacket *pack =
+        (struct artsRemoteSmartDbAddDependencePacket *)(packet);
+    artsSmartDbAddDependence(pack->dbSrc, pack->edtDest, pack->edtSlot);
+    break;
+  }
+#endif
   case ARTS_REMOTE_DB_REQUEST_MSG: {
     struct artsRemoteDbRequestPacket *pack =
         (struct artsRemoteDbRequestPacket *)(packet);
@@ -159,10 +180,9 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     struct artsRemoteAddDependencePacket *pack =
         (struct artsRemoteAddDependencePacket *)(packet);
     artsAddDependenceToPersistentEvent(pack->source, pack->destination,
-                                       pack->slot, pack->data);
+                                       pack->slot);
     break;
   }
-
   case ARTS_REMOTE_INVALIDATE_DB_MSG: {
     DPRINTF("DB Invalidate Recieved\n");
     artsRemoteHandleInvalidateDb(packet);

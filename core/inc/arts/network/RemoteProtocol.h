@@ -44,7 +44,6 @@ extern "C" {
 #endif
 #define SEQUENCENUMBERS 1
 
-// TODO: Switch to an enum
 enum artsServerMessageType {
   ARTS_REMOTE_SHUTDOWN_MSG = 0,
   ARTS_REMOTE_EDT_SIGNAL_MSG,
@@ -53,9 +52,13 @@ enum artsServerMessageType {
   ARTS_REMOTE_PERSISTENT_EVENT_SATISFY_SLOT_MSG,
   ARTS_REMOTE_ADD_DEPENDENCE_MSG,
   ARTS_REMOTE_ADD_DEPENDENCE_TO_PERSISTENT_EVENT_MSG,
+#ifdef SMART_DB
+  ARTS_REMOTE_SMART_DB_ADD_DEPENDENCE_MSG,
+  ARTS_REMOTE_SMART_DB_INCREMENT_LATCH_MSG,
+  ARTS_REMOTE_SMART_DB_DECREMENT_LATCH_MSG,
+#endif
   ARTS_REMOTE_DB_REQUEST_MSG,
   ARTS_REMOTE_DB_SEND_MSG,
-  ARTS_REMOTE_SMART_DB_SEND_MSG,
   ARTS_REMOTE_INVALIDATE_DB_MSG,
   ARTS_REMOTE_DB_UPDATE_GUID_MSG,
   ARTS_REMOTE_DB_UPDATE_MSG,
@@ -67,7 +70,6 @@ enum artsServerMessageType {
   ARTS_REMOTE_EVENT_MOVE_MSG,
   ARTS_REMOTE_PERSISTENT_EVENT_MOVE_MSG,
   ARTS_REMOTE_DB_MOVE_MSG,
-  ARTS_REMOTE_SMART_DB_MOVE_MSG,
   ARTS_REMOTE_PINGPONG_TEST_MSG,
   ARTS_REMOTE_METRIC_UPDATE_MSG,
   ARTS_REMOTE_DB_FULL_REQUEST_MSG,
@@ -108,34 +110,11 @@ struct artsRemoteGuidOnlyPacket {
   artsGuid_t guid;
 };
 
-struct __attribute__((__packed__)) artsRemoteInvalidateDbPacket {
-  struct artsRemotePacket header;
-  artsGuid_t guid;
-};
-
-struct __attribute__((__packed__)) artsRemoteUpdateDbGuidPacket {
-  struct artsRemotePacket header;
-  artsGuid_t guid;
-};
-
-struct __attribute__((__packed__)) artsRemoteUpdateDbPacket {
-  struct artsRemotePacket header;
-  artsGuid_t guid;
-};
-
-struct __attribute__((__packed__)) artsRemoteMemoryMovePacket {
-  struct artsRemotePacket header;
-  artsGuid_t guid;
-};
-
 struct __attribute__((__packed__)) artsRemoteAddDependencePacket {
   struct artsRemotePacket header;
   artsGuid_t source;
   artsGuid_t destination;
   uint32_t slot;
-  artsGuid_t data;
-  artsType_t mode;
-  unsigned int destRoute;
 };
 
 struct __attribute__((__packed__)) artsRemoteEdtSignalPacket {
@@ -144,7 +123,6 @@ struct __attribute__((__packed__)) artsRemoteEdtSignalPacket {
   artsGuid_t db;
   uint32_t slot;
   artsType_t mode;
-  //-------------------------Routing info
   unsigned int dbRoute;
 };
 
@@ -153,10 +131,23 @@ struct __attribute__((__packed__)) artsRemoteEventSatisfySlotPacket {
   artsGuid_t event;
   artsGuid_t db;
   uint32_t slot;
-  //-------------------------Routing info
-  unsigned int dbRoute;
 };
 
+struct __attribute__((__packed__)) artsRemotePersistentEventSatisfySlotPacket {
+  struct artsRemotePacket header;
+  artsGuid_t event;
+  uint32_t slot;
+  bool lock;
+};
+
+#ifdef SMART_DB
+struct __attribute__((__packed__)) artsRemoteSmartDbAddDependencePacket {
+  struct artsRemotePacket header;
+  artsGuid_t dbSrc;
+  artsGuid_t edtDest;
+  uint32_t edtSlot;
+};
+#endif
 struct __attribute__((__packed__)) artsRemoteDbRequestPacket {
   struct artsRemotePacket header;
   artsGuid_t dbGuid;
@@ -225,11 +216,6 @@ struct __attribute__((__packed__)) artsRemoteEpochInitPoolPacket {
   unsigned int poolSize;
   artsGuid_t startGuid;
   artsGuid_t poolGuid;
-};
-
-struct __attribute__((__packed__)) artsRemoteEpochReqPacket {
-  struct artsRemotePacket header;
-  artsGuid_t epochGuid;
 };
 
 struct __attribute__((__packed__)) artsRemoteEpochSendPacket {

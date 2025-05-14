@@ -443,6 +443,10 @@ artsGetLastPersistentEventVersion(struct artsPersistentEvent *event) {
 
 bool artsPersistentEventCreateInternal(artsGuid_t *guid, unsigned int route,
                                        artsGuid_t eventData) {
+  if (eventData == NULL_GUID) {
+    printf("Event data is NULL_GUID for persistent event\n");
+    artsDebugGenerateSegFault();
+  }
   const unsigned int eventSize = sizeof(struct artsPersistentEvent);
   ARTSSETMEMSHOTTYPE(artsPersistentEventMemorySize);
   void *eventPacket = artsCalloc(eventSize);
@@ -536,12 +540,12 @@ void artsPersistentEventDestroy(artsGuid_t guid) {
   }
 }
 
-void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
-                                uint32_t action, bool lock) {
+void artsPersistentEventSatisfy(artsGuid_t eventGuid, uint32_t action,
+                                bool lock) {
   ARTSEDTCOUNTERTIMERSTART(signalPersistentEventCounter);
   if (currentEdt && currentEdt->invalidateCount > 0) {
     artsOutOfOrderPersistentEventSatisfySlot(currentEdt->currentEdt, eventGuid,
-                                             dataGuid, action, true);
+                                             action, true);
     return;
   }
   struct artsPersistentEvent *event =
@@ -549,17 +553,15 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
   if (!event) {
     unsigned int rank = artsGuidGetRank(eventGuid);
     if (rank != artsGlobalRankId) {
-      artsRemotePersistentEventSatisfySlot(eventGuid, dataGuid, action);
+      artsRemotePersistentEventSatisfySlot(eventGuid, action, lock);
     } else {
-      artsOutOfOrderPersistentEventSatisfySlot(eventGuid, eventGuid, dataGuid,
-                                               action, false);
+      artsOutOfOrderPersistentEventSatisfySlot(eventGuid, eventGuid, action,
+                                               false);
     }
   } else {
     if (lock)
       artsLock(&event->lock);
-    if (dataGuid != NULL_GUID) {
-      event->data = dataGuid;
-    } else {
+    if (event->data == NULL_GUID) {
       DPRINTF("Data: NULL_GUID, avoiding signaling\n");
       artsDebugGenerateSegFault();
     }
@@ -628,8 +630,8 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
                 (artsThreadInfo.currentEdtGuid) ? signalEventCounterOn
                                                 : signalEventCounter));
 #endif
-            artsPersistentEventSatisfy(dependent[j].addr, event->data,
-                                       dependent[j].slot, false);
+            artsPersistentEventSatisfy(dependent[j].addr, dependent[j].slot,
+                                       false);
 #ifdef COUNT
             // THIS IS A TEMP FIX... problem is recursion...
             artsCounterSetEndTime(artsGetCounter((artsThreadInfo.currentEdtGuid)
@@ -667,21 +669,16 @@ void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
   ARTSEDTCOUNTERTIMERENDINCREMENT(signalPersistentEventCounter);
 }
 
-void artsPersistentEventIncrementLatch(artsGuid_t eventGuid,
-                                       artsGuid_t dataGuid) {
-  artsPersistentEventSatisfy(eventGuid, dataGuid, ARTS_EVENT_LATCH_INCR_SLOT,
-                             true);
+void artsPersistentEventIncrementLatch(artsGuid_t eventGuid) {
+  artsPersistentEventSatisfy(eventGuid, ARTS_EVENT_LATCH_INCR_SLOT, true);
 }
 
-void artsPersistentEventDecrementLatch(artsGuid_t eventGuid,
-                                       artsGuid_t dataGuid) {
-  artsPersistentEventSatisfy(eventGuid, dataGuid, ARTS_EVENT_LATCH_DECR_SLOT,
-                             true);
+void artsPersistentEventDecrementLatch(artsGuid_t eventGuid) {
+  artsPersistentEventSatisfy(eventGuid, ARTS_EVENT_LATCH_DECR_SLOT, true);
 }
 
 void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
-                                        artsGuid_t edtDest, uint32_t edtSlot,
-                                        artsGuid_t dataGuid) {
+                                        artsGuid_t edtDest, uint32_t edtSlot) {
   /// Check that the eventSource is a persistent event
   if (artsGuidGetType(eventSource) != ARTS_PERSISTENT_EVENT) {
     PRINTF("Event source %u is not a persistent event\n", eventSource);
@@ -694,10 +691,10 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
     unsigned int rank = artsGuidGetRank(eventSource);
     if (rank != artsGlobalRankId) {
       artsRemoteAddDependenceToPersistentEvent(eventSource, edtDest, edtSlot,
-                                               dataGuid, mode, rank);
+                                               mode, rank);
     } else {
-      artsOutOfOrderAddDependenceToPersistentEvent(
-          eventSource, edtDest, edtSlot, dataGuid, mode, eventSource);
+      artsOutOfOrderAddDependenceToPersistentEvent(eventSource, edtDest,
+                                                   edtSlot, mode, eventSource);
     }
     return;
   }
@@ -723,8 +720,7 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
 
     unsigned int res = artsAtomicFetchAdd(&version->latchCount, 0U);
     if (res == 0) {
-      artsPersistentEventSatisfy(eventSource, dataGuid, ARTS_EVENT_UPDATE,
-                                 false);
+      artsPersistentEventSatisfy(eventSource, ARTS_EVENT_UPDATE, false);
     }
   } else if (mode == ARTS_EVENT) {
     struct artsDependentList *dependentList = &version->dependent;
@@ -737,8 +733,7 @@ void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
     dependent->doneWriting = true;
 
     if (artsAtomicFetchAdd(&version->latchCount, 0U) == 0) {
-      artsPersistentEventSatisfy(eventSource, dataGuid, ARTS_EVENT_UPDATE,
-                                 false);
+      artsPersistentEventSatisfy(eventSource, ARTS_EVENT_UPDATE, false);
     }
   }
   artsUnlock(&event->lock);

@@ -47,10 +47,9 @@ extern "C" {
 void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
                              uint32_t slot, artsType_t mode, unsigned int rank);
 void artsRemoteAddDependenceToPersistentEvent(artsGuid_t source,
-                                             artsGuid_t destination,
-                                             uint32_t slot, artsGuid_t data,
-                                             artsType_t mode,
-                                             unsigned int rank);
+                                              artsGuid_t destination,
+                                              uint32_t slot, artsType_t mode,
+                                              unsigned int rank);
 void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank);
 void artsRemoteHandleUpdateDbGuid(void *ptr);
 void artsRemoteHandleInvalidateDb(void *ptr);
@@ -73,8 +72,11 @@ void artsRemoteSignalEdt(artsGuid_t edt, artsGuid_t db, uint32_t slot,
                          artsType_t mode);
 void artsRemoteEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,
                                 uint32_t slot);
-void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid,
-                                          artsGuid_t dataGuid, uint32_t slot);
+void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid, uint32_t slot, bool lock);
+void artsRemoteSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+                                    uint32_t edtSlot);
+void artsRemoteSmartDbIncrementLatch(artsGuid_t db);
+void artsRemoteSmartDbDecrementLatch(artsGuid_t db);
 void artsDbRequestCallback(struct artsEdt *edt, unsigned int slot,
                            struct artsDb *dbRes);
 bool artsRemoteDbRequest(artsGuid_t dataGuid, int rank, struct artsEdt *edt,

@@ -52,7 +52,7 @@
 #include "arts/utils/Atomics.h"
 
 #ifdef USE_GPU
-#include "artsGpuRuntime.h"
+#include "arts/gpu/GpuRuntime.h"
 #endif
 
 #define DPRINTF(...)
@@ -253,8 +253,6 @@ bool artsEdtCreateInternal(struct artsEdt *edt, artsType_t mode,
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-
 artsGuid_t artsEdtCreateDep(artsEdt_t funcPtr, unsigned int route,
                             uint32_t paramc, uint64_t *paramv, uint32_t depc,
                             bool hasDepv) {
@@ -302,8 +300,6 @@ artsGuid_t artsEdtCreateWithEpochDep(artsEdt_t funcPtr, unsigned int route,
   return guid;
 }
 
-/*----------------------------------------------------------------------------*/
-
 artsGuid_t artsEdtCreate(artsEdt_t funcPtr, unsigned int route, uint32_t paramc,
                          uint64_t *paramv, uint32_t depc) {
   return artsEdtCreateDep(funcPtr, route, paramc, paramv, depc, true);
@@ -322,7 +318,6 @@ artsGuid_t artsEdtCreateWithEpoch(artsEdt_t funcPtr, unsigned int route,
                                    epochGuid, true);
 }
 
-/*----------------------------------------------------------------------------*/
 void artsEdtFree(struct artsEdt *edt) {
   artsThreadInfo.edtFree = 1;
   artsFree(edt);
@@ -427,7 +422,6 @@ artsGuid_t artsActiveMessageWithDb(artsEdt_t funcPtr, uint32_t paramc,
                                    artsGuid_t dbGuid) {
   unsigned int rank = artsGuidGetRank(dbGuid);
   artsGuid_t guid = artsEdtCreate(funcPtr, rank, paramc, paramv, depc + 1);
-  //    PRINTF("AM -> %lu rank: %u depc: %u\n", guid, rank, depc+1);
   artsSignalEdt(guid, 0, dbGuid);
   return guid;
 }
@@ -451,8 +445,6 @@ artsGuid_t artsActiveMessageWithBuffer(artsEdt_t funcPtr, unsigned int route,
   artsSignalEdtPtr(guid, 0, ptr, size);
   return guid;
 }
-
-/*----------------------------------------------------------------------------*/
 
 artsGuid_t artsAllocateLocalBuffer(void **buffer, unsigned int size,
                                    unsigned int uses, artsGuid_t epochGuid) {
@@ -524,10 +516,7 @@ void *artsSetBuffer(artsGuid_t bufferGuid, void *buffer, unsigned int size) {
       globalShutdownGuidIncFinished();
     } else
       PRINTF("Out-of-order buffers not supported\n");
-  } else {
-    //        PRINTF("Sending size: %u\n", size);
-    //        artsRemoteMemoryMoveNoFree(rank, bufferGuid, buffer, size,
-    //        ARTS_REMOTE_BUFFER_SEND_MSG);
+    } else {
     artsRemoteMemoryMove(rank, bufferGuid, buffer, size,
                          ARTS_REMOTE_BUFFER_SEND_MSG, artsFree);
   }
@@ -536,7 +525,6 @@ void *artsSetBuffer(artsGuid_t bufferGuid, void *buffer, unsigned int size) {
 
 void *artsGetBuffer(artsGuid_t bufferGuid) {
   void *buffer = NULL;
-  // unsigned int rank = artsGuidGetRank(bufferGuid);
   if (artsIsGuidLocal(bufferGuid)) {
     artsBuffer_t *stub = artsRouteTableLookupItem(bufferGuid);
     buffer = stub->buffer;
@@ -569,9 +557,6 @@ volatile uint64_t outstandingEdts = 0;
 void checkOutEdts(uint64_t threashold) {
   static uint64_t count = 0;
   if (artsAtomicFetchAddU64(&count, 1) + 1 == threashold) {
-    // fprintf(stderr, "Node: %u has no edts threashold: %lu\n",
-    // artsGlobalRankId,
-    //         threashold);
     artsAtomicFetchSubU64(&count, threashold);
   }
 }

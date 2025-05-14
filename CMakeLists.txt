@@ -171,7 +171,13 @@ endif()
 if(INSPECTOR)
     message("Inspection on")
     add_definitions(-DINSPECTOR)
+endif()
 
+if(DEFINED SMART_DB)
+    message("Smart DB on")
+    add_definitions(-DSMART_DB)
+else()
+    message("Smart DB off")
 endif()
 
 message("Using ${MALLOC} malloc.")

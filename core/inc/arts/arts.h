@@ -309,27 +309,24 @@ artsGuid_t artsPersistentEventCreate(unsigned int route,
                                      artsGuid_t dataGuid);
 
 /// Satisfy the persistent event
-void artsPersistentEventSatisfy(artsGuid_t eventGuid, artsGuid_t dataGuid,
-                                uint32_t action, bool lock);
+void artsPersistentEventSatisfy(artsGuid_t eventGuid, uint32_t action,
+                                bool lock);
 
 // Increment the latch count of a persistent event. This is used to indicate
 // that a new dependency has been added to the event, allowing it to fire
 // again.
-void artsPersistentEventIncrementLatch(artsGuid_t eventGuid,
-                                       artsGuid_t dataGuid);
+void artsPersistentEventIncrementLatch(artsGuid_t eventGuid);
 
 // Decrement the latch count of a persistent event. This is used to indicate
 // that a dependency has been satisfied. If the latch count reaches zero,
 // the event will fire, signaling any dependent EDTs.
-void artsPersistentEventDecrementLatch(artsGuid_t eventGuid,
-                                       artsGuid_t dataGuid);
+void artsPersistentEventDecrementLatch(artsGuid_t eventGuid);
 
 // Adds a dependence from a source persistent event to a destination EDT slot.
 // If the source event latch count is zero, the destination EDT will be signaled
 // immediately.
 void artsAddDependenceToPersistentEvent(artsGuid_t eventSource,
-                                        artsGuid_t edtDest, uint32_t edtSlot,
-                                        artsGuid_t dataGuid);
+                                        artsGuid_t edtDest, uint32_t edtSlot);
 
 /*DB***************************************************************************/
 
@@ -409,6 +406,19 @@ artsGuid_t artsDbRename(artsGuid_t guid);
 bool artsDbRenameWithGuid(artsGuid_t newGuid, artsGuid_t oldGuid);
 
 artsGuid_t artsDbCopyToNewType(artsGuid_t oldGuid, artsType_t newType);
+
+#ifdef SMART_DB
+// Increment the latch count associated with the persistent event of the DB
+void artsSmartDbIncrementLatch(artsGuid_t guid);
+
+// Decrement the latch count associated with the persistent event of the DB
+void artsSmartDbDecrementLatch(artsGuid_t guid);
+
+// Adds a dependence from a the persistent event associated with the DB to an
+// EDT slot.
+void artsSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+                              uint32_t edtSlot);
+#endif
 
 /*Epoch************************************************************************/
 

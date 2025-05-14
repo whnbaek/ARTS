@@ -38,14 +38,12 @@
 ******************************************************************************/
 #include "arts/gas/Guid.h"
 #include "arts/introspection/Counter.h"
-#include "arts/system/Debug.h"
 #include "arts/runtime/Globals.h"
+#include "arts/system/Debug.h"
 
 #define DPRINTF
 // #define DPRINTF(...) PRINTF(__VA_ARGS__)
 
-//__thread uint64_t globalGuidThreadId = 0;
-//__thread uint64_t * keys;
 uint64_t numTables = 0;
 uint64_t keysPerThread = 0;
 uint64_t globalGuidOn = 0;
@@ -57,7 +55,6 @@ void setGlobalGuidOn() { globalGuidOn = ((uint64_t)1) << 40; }
 uint64_t *artsGuidGeneratorGetKey(unsigned int route, unsigned int type) {
   return &artsNodeInfo
               .keys[artsThreadInfo.groupId][route * ARTS_LAST_TYPE + type];
-  //    return &keys[route*ARTS_LAST_TYPE + type];
 }
 
 artsGuid_t artsGuidCreateForRankInternal(unsigned int route, unsigned int type,
@@ -73,12 +70,9 @@ artsGuid_t artsGuidCreateForRankInternal(unsigned int route, unsigned int type,
       artsDebugGenerateSegFault();
     }
   } else {
-
     uint64_t *key = artsGuidGeneratorGetKey(route, type);
     uint64_t value = *key;
     if (value + guidCount < keysPerThread) {
-      //            guid.fields.key = value + keysPerThread *
-      //            globalGuidThreadId;
       guid.fields.key =
           value + keysPerThread *
                       artsNodeInfo.globalGuidThreadId[artsThreadInfo.groupId];

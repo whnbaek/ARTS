@@ -37,6 +37,7 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 #include "arts/runtime/network/RemoteFunctions.h"
+#include "arts/arts.h"
 #include "arts/gas/Guid.h"
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gas/RouteTable.h"
@@ -75,8 +76,6 @@ void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
   packet.source = source;
   packet.destination = destination;
   packet.slot = slot;
-  packet.mode = mode;
-  packet.destRoute = artsGuidGetRank(destination);
   artsFillPacketHeader(&packet.header, sizeof(packet),
                        ARTS_REMOTE_ADD_DEPENDENCE_MSG);
   artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
@@ -84,24 +83,19 @@ void artsRemoteAddDependence(artsGuid_t source, artsGuid_t destination,
 
 void artsRemoteAddDependenceToPersistentEvent(artsGuid_t source,
                                               artsGuid_t destination,
-                                              uint32_t slot, artsGuid_t data,
-                                              artsType_t mode,
+                                              uint32_t slot, artsType_t mode,
                                               unsigned int rank) {
   DPRINTF("Remote Add dependence to persistent event sent %d\n", rank);
   struct artsRemoteAddDependencePacket packet;
   packet.source = source;
   packet.destination = destination;
   packet.slot = slot;
-  packet.data = data;
-  packet.mode = mode;
-  packet.destRoute = artsGuidGetRank(destination);
   artsFillPacketHeader(&packet.header, sizeof(packet),
                        ARTS_REMOTE_ADD_DEPENDENCE_TO_PERSISTENT_EVENT_MSG);
   artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
 }
 
 void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank) {
-  DPRINTF("Here Update Table %ld %u\n", guid, rank);
   unsigned int owner = artsGuidGetRank(guid);
   if (owner == artsGlobalRankId) {
     struct artsDbFrontierIterator *iter =
@@ -110,7 +104,7 @@ void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank) {
       unsigned int node;
       while (artsDbFrontierIterNext(iter, &node)) {
         if (node != artsGlobalRankId && node != rank) {
-          struct artsRemoteInvalidateDbPacket outPacket;
+          struct artsRemoteGuidOnlyPacket outPacket;
           outPacket.guid = guid;
           artsFillPacketHeader(&outPacket.header, sizeof(outPacket),
                                ARTS_REMOTE_INVALIDATE_DB_MSG);
@@ -121,7 +115,7 @@ void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank) {
       artsFree(iter);
     }
   } else {
-    struct artsRemoteUpdateDbGuidPacket packet;
+    struct artsRemoteGuidOnlyPacket packet;
     artsFillPacketHeader(&packet.header, sizeof(packet),
                          ARTS_REMOTE_DB_UPDATE_GUID_MSG);
     packet.guid = guid;
@@ -130,13 +124,13 @@ void artsRemoteUpdateRouteTable(artsGuid_t guid, unsigned int rank) {
 }
 
 void artsRemoteHandleUpdateDbGuid(void *ptr) {
-  struct artsRemoteUpdateDbGuidPacket *packet = ptr;
+  struct artsRemoteGuidOnlyPacket *packet = ptr;
   DPRINTF("Updated %ld to %d\n", packet->guid, packet->header.rank);
   artsRemoteUpdateRouteTable(packet->guid, packet->header.rank);
 }
 
 void artsRemoteHandleInvalidateDb(void *ptr) {
-  struct artsRemoteInvalidateDbPacket *packet = ptr;
+  struct artsRemoteGuidOnlyPacket *packet = ptr;
   void *address = artsRouteTableLookupItem(packet->guid);
   artsRouteTableInvalidateItem(packet->guid);
 }
@@ -226,17 +220,17 @@ void artsRemoteHandleDbDestroy(void *ptr) {
 void artsRemoteUpdateDb(artsGuid_t guid, bool sendDb) {
   unsigned int rank = artsGuidGetRank(guid);
   if (rank != artsGlobalRankId) {
-    struct artsRemoteUpdateDbPacket packet;
+    struct artsRemoteGuidOnlyPacket packet;
     packet.guid = guid;
     struct artsDb *db = NULL;
     if (sendDb && (db = artsRouteTableLookupItem(guid))) {
-      int size = sizeof(struct artsRemoteUpdateDbPacket) + db->header.size;
+      int size = sizeof(struct artsRemoteGuidOnlyPacket) + db->header.size;
       artsFillPacketHeader(&packet.header, size, ARTS_REMOTE_DB_UPDATE_MSG);
       artsRemoteSendRequestPayloadAsync(rank, (char *)&packet, sizeof(packet),
                                         (char *)db, db->header.size);
     } else {
       artsFillPacketHeader(&packet.header,
-                           sizeof(struct artsRemoteUpdateDbPacket),
+                           sizeof(struct artsRemoteGuidOnlyPacket),
                            ARTS_REMOTE_DB_UPDATE_MSG);
       artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
     }
@@ -244,13 +238,13 @@ void artsRemoteUpdateDb(artsGuid_t guid, bool sendDb) {
 }
 
 void artsRemoteHandleUpdateDb(void *ptr) {
-  struct artsRemoteUpdateDbPacket *packet =
-      (struct artsRemoteUpdateDbPacket *)ptr;
+  struct artsRemoteGuidOnlyPacket *packet =
+      (struct artsRemoteGuidOnlyPacket *)ptr;
   struct artsDb *packetDb = (struct artsDb *)(packet + 1);
   unsigned int rank = artsGuidGetRank(packet->guid);
   if (rank == artsGlobalRankId) {
     struct artsDb **dataPtr;
-    bool write = packet->header.size > sizeof(struct artsRemoteUpdateDbPacket);
+    bool write = packet->header.size > sizeof(struct artsRemoteGuidOnlyPacket);
     itemState_t state = artsRouteTableLookupItemWithState(
         packet->guid, (void ***)&dataPtr, allocatedKey, write);
     struct artsDb *db = (dataPtr) ? *dataPtr : NULL;
@@ -268,7 +262,7 @@ void artsRemoteHandleUpdateDb(void *ptr) {
 void artsRemoteMemoryMove(unsigned int route, artsGuid_t guid, void *ptr,
                           unsigned int memSize, unsigned messageType,
                           void (*freeMethod)(void *)) {
-  struct artsRemoteMemoryMovePacket packet;
+  struct artsRemoteGuidOnlyPacket packet;
   artsFillPacketHeader(&packet.header, sizeof(packet) + memSize, messageType);
   packet.guid = guid;
   artsRemoteSendRequestPayloadAsyncFree(route, (char *)&packet, sizeof(packet),
@@ -278,7 +272,7 @@ void artsRemoteMemoryMove(unsigned int route, artsGuid_t guid, void *ptr,
 
 void artsRemoteMemoryMoveNoFree(unsigned int route, artsGuid_t guid, void *ptr,
                                 unsigned int memSize, unsigned messageType) {
-  struct artsRemoteMemoryMovePacket packet;
+  struct artsRemoteGuidOnlyPacket packet;
   artsFillPacketHeader(&packet.header, sizeof(packet) + memSize, messageType);
   packet.guid = guid;
   artsRemoteSendRequestPayloadAsync(route, (char *)&packet, sizeof(packet), ptr,
@@ -286,9 +280,9 @@ void artsRemoteMemoryMoveNoFree(unsigned int route, artsGuid_t guid, void *ptr,
 }
 
 void artsRemoteHandleEdtMove(void *ptr) {
-  struct artsRemoteMemoryMovePacket *packet = ptr;
+  struct artsRemoteGuidOnlyPacket *packet = ptr;
   unsigned int size =
-      packet->header.size - sizeof(struct artsRemoteMemoryMovePacket);
+      packet->header.size - sizeof(struct artsRemoteGuidOnlyPacket);
 
   ARTSSETMEMSHOTTYPE(artsEdtMemorySize);
   struct artsEdt *edt = artsMalloc(size);
@@ -304,9 +298,9 @@ void artsRemoteHandleEdtMove(void *ptr) {
 }
 
 void artsRemoteHandleDbMove(void *ptr) {
-  struct artsRemoteMemoryMovePacket *packet = ptr;
+  struct artsRemoteGuidOnlyPacket *packet = ptr;
   unsigned int size =
-      packet->header.size - sizeof(struct artsRemoteMemoryMovePacket);
+      packet->header.size - sizeof(struct artsRemoteGuidOnlyPacket);
 
   struct artsDb *dbHeader = (struct artsDb *)(packet + 1);
   unsigned int dbSize = dbHeader->header.size;
@@ -333,9 +327,9 @@ void artsRemoteHandleDbMove(void *ptr) {
 }
 
 void artsRemoteHandleEventMove(void *ptr) {
-  struct artsRemoteMemoryMovePacket *packet = ptr;
+  struct artsRemoteGuidOnlyPacket *packet = ptr;
   unsigned int size =
-      packet->header.size - sizeof(struct artsRemoteMemoryMovePacket);
+      packet->header.size - sizeof(struct artsRemoteGuidOnlyPacket);
 
   ARTSSETMEMSHOTTYPE(artsEventMemorySize);
   struct artsHeader *memPacket = artsMalloc(size);
@@ -348,9 +342,9 @@ void artsRemoteHandleEventMove(void *ptr) {
 }
 
 void artsRemoteHandlePersistentEventMove(void *ptr) {
-  struct artsRemoteMemoryMovePacket *packet = ptr;
+  struct artsRemoteGuidOnlyPacket *packet = ptr;
   unsigned int size =
-      packet->header.size - sizeof(struct artsRemoteMemoryMovePacket);
+      packet->header.size - sizeof(struct artsRemoteGuidOnlyPacket);
 
   ARTSSETMEMSHOTTYPE(artsPersistentEventMemorySize);
   struct artsHeader *memPacket = artsMalloc(size);
@@ -387,30 +381,57 @@ void artsRemoteEventSatisfySlot(artsGuid_t eventGuid, artsGuid_t dataGuid,
   packet.event = eventGuid;
   packet.db = dataGuid;
   packet.slot = slot;
-  packet.dbRoute = artsGuidGetRank(dataGuid);
   artsFillPacketHeader(&packet.header, sizeof(packet),
                        ARTS_REMOTE_EVENT_SATISFY_SLOT_MSG);
   artsRemoteSendRequestAsync(artsGuidGetRank(eventGuid), (char *)&packet,
                              sizeof(packet));
 }
 
-void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid,
-                                          artsGuid_t dataGuid, uint32_t slot) {
-  struct artsRemoteEventSatisfySlotPacket packet;
+void artsRemotePersistentEventSatisfySlot(artsGuid_t eventGuid, uint32_t slot,
+                                          bool lock) {
+  struct artsRemotePersistentEventSatisfySlotPacket packet;
   packet.event = eventGuid;
-  packet.db = dataGuid;
   packet.slot = slot;
-  packet.dbRoute = artsGuidGetRank(dataGuid);
+  packet.lock = lock;
   artsFillPacketHeader(&packet.header, sizeof(packet),
                        ARTS_REMOTE_PERSISTENT_EVENT_SATISFY_SLOT_MSG);
   artsRemoteSendRequestAsync(artsGuidGetRank(eventGuid), (char *)&packet,
                              sizeof(packet));
 }
 
+void artsRemoteSmartDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
+                                    uint32_t edtSlot) {
+  struct artsRemoteSmartDbAddDependencePacket packet;
+  packet.dbSrc = dbSrc;
+  packet.edtDest = edtDest;
+  packet.edtSlot = edtSlot;
+  artsFillPacketHeader(&packet.header, sizeof(packet),
+                       ARTS_REMOTE_SMART_DB_ADD_DEPENDENCE_MSG);
+  artsRemoteSendRequestAsync(artsGuidGetRank(dbSrc), (char *)&packet,
+                             sizeof(packet));
+}
+
+void artsRemoteSmartDbIncrementLatch(artsGuid_t db) {
+  struct artsRemoteGuidOnlyPacket packet;
+  packet.guid = db;
+  artsFillPacketHeader(&packet.header, sizeof(packet),
+                       ARTS_REMOTE_SMART_DB_INCREMENT_LATCH_MSG);
+  artsRemoteSendRequestAsync(artsGuidGetRank(db), (char *)&packet,
+                             sizeof(packet));
+}
+
+void artsRemoteSmartDbDecrementLatch(artsGuid_t db) {
+  struct artsRemoteGuidOnlyPacket packet;
+  packet.guid = db;
+  artsFillPacketHeader(&packet.header, sizeof(packet),
+                       ARTS_REMOTE_SMART_DB_DECREMENT_LATCH_MSG);
+  artsRemoteSendRequestAsync(artsGuidGetRank(db), (char *)&packet,
+                             sizeof(packet));
+}
+
 void artsDbRequestCallback(struct artsEdt *edt, unsigned int slot,
                            struct artsDb *dbRes) {
   artsEdtDep_t *depv = artsGetDepv(edt);
-
   depv[slot].ptr = dbRes + 1;
   unsigned int temp = artsAtomicSub(&edt->depcNeeded, 1U);
   if (temp == 0)
@@ -445,8 +466,6 @@ void artsRemoteDbForward(int destRank, int sourceRank, artsGuid_t dataGuid,
 }
 
 void artsRemoteDbSendNow(int rank, struct artsDb *db) {
-  DPRINTF("SEND NOW: %u -> %u\n", artsGlobalRankId, rank);
-  //    artsDebugPrintStack();
   struct artsRemoteDbSendPacket packet;
   int size = sizeof(struct artsRemoteDbSendPacket) + db->header.size;
   artsFillPacketHeader(&packet.header, size, ARTS_REMOTE_DB_SEND_MSG);
@@ -802,17 +821,17 @@ void artsRemoteHandleEpochInitPoolSend(void *pack) {
 
 void artsRemoteEpochReq(unsigned int rank, artsGuid_t guid) {
   DPRINTF("Net Epoch Req Send: %u\n", rank);
-  struct artsRemoteEpochReqPacket packet;
-  packet.epochGuid = guid;
+  struct artsRemoteGuidOnlyPacket packet;
+  packet.guid = guid;
   artsFillPacketHeader(&packet.header, sizeof(packet), ARTS_EPOCH_REQ_MSG);
   artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
 }
 
 void artsRemoteHandleEpochReq(void *pack) {
   DPRINTF("Net Epoch Req Rec\n");
-  struct artsRemoteEpochReqPacket *packet = pack;
+  struct artsRemoteGuidOnlyPacket *packet = pack;
   // For now the source and dest are the same...
-  sendEpoch(packet->epochGuid, packet->header.rank, packet->header.rank);
+  sendEpoch(packet->guid, packet->header.rank, packet->header.rank);
 }
 
 void artsRemoteEpochSend(unsigned int rank, artsGuid_t guid,
@@ -881,16 +900,16 @@ void artsRemoteHandleAtomicCompareAndSwapInArrayDb(void *pack) {
 }
 
 void artsRemoteEpochDelete(unsigned int rank, artsGuid_t epochGuid) {
-  struct artsRemoteEpochReqPacket packet;
-  packet.epochGuid = epochGuid;
+  struct artsRemoteGuidOnlyPacket packet;
+  packet.guid = epochGuid;
   artsFillPacketHeader(&packet.header, sizeof(packet), ARTS_EPOCH_DELETE_MSG);
   artsRemoteSendRequestAsync(rank, (char *)&packet, sizeof(packet));
 }
 
 void artsRemoteHandleEpochDelete(void *pack) {
-  struct artsRemoteEpochReqPacket *packet =
-      (struct artsRemoteEpochReqPacket *)pack;
-  deleteEpoch(packet->epochGuid, NULL);
+  struct artsRemoteGuidOnlyPacket *packet =
+      (struct artsRemoteGuidOnlyPacket *)pack;
+  deleteEpoch(packet->guid, NULL);
 }
 
 void artsDbMoveRequest(artsGuid_t dbGuid, unsigned int destRank) {
@@ -910,10 +929,10 @@ void artsDbMoveRequestHandle(void *pack) {
 }
 
 void artsRemoteHandleBufferSend(void *pack) {
-  struct artsRemoteMemoryMovePacket *packet =
-      (struct artsRemoteMemoryMovePacket *)pack;
+  struct artsRemoteGuidOnlyPacket *packet =
+      (struct artsRemoteGuidOnlyPacket *)pack;
   unsigned int size =
-      packet->header.size - sizeof(struct artsRemoteMemoryMovePacket);
+      packet->header.size - sizeof(struct artsRemoteGuidOnlyPacket);
   void *buffer = (void *)(packet + 1);
   artsSetBuffer(packet->guid, buffer, size);
 }

@@ -49,11 +49,7 @@ endif()
 
 file(GLOB utils_src_local "${utils_dir}/*.c")
 
-message(STATUS "Globbed utils_src_local: ${utils_src_local}")
-message(STATUS "Excluding: ${utils_src_exclude}")
 
 list(REMOVE_ITEM utils_src_local ${utils_src_exclude})
-
-message(STATUS "Final utils_src_local: ${utils_src_local}")
 
 add_library(utils OBJECT ${utils_src_local})

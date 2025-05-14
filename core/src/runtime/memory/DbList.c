@@ -37,13 +37,13 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 #include "arts/runtime/memory/DbList.h"
-#include "arts/runtime/compute/EdtFunctions.h"
-#include "arts/runtime/network/RemoteFunctions.h"
-#include "arts/runtime/Runtime.h"
-#include "arts/utils/Atomics.h"
-#include "arts/runtime/Globals.h"
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gas/RouteTable.h"
+#include "arts/runtime/Globals.h"
+#include "arts/runtime/Runtime.h"
+#include "arts/runtime/compute/EdtFunctions.h"
+#include "arts/runtime/network/RemoteFunctions.h"
+#include "arts/utils/Atomics.h"
 
 #define writeSet 0x80000000
 #define exclusiveSet 0x40000000
@@ -92,12 +92,14 @@ bool frontierAddWriteLock(volatile unsigned int *lock) {
   unsigned int local, temp;
   while (1) {
     local = *lock;
-    if ((local & exclusiveSet) != 0) // Make sure exclusive not set first
+    // Make sure exclusive not set first
+    if ((local & exclusiveSet) != 0)
       return false;
-    if ((local & writeSet) != 0) // Make sure write not set first
+    // Make sure write not set first
+    if ((local & writeSet) != 0)
       return false;
-    if ((local & 1U) == 0) // Wait for lock to be free
-    {
+    // Wait for lock to be free
+    if ((local & 1U) == 0) {
       temp = artsAtomicCswap(lock, local, local | writeSet | 1U);
       if (temp == local) {
         return true;
@@ -111,17 +113,17 @@ bool frontierAddExclusiveLock(volatile unsigned int *lock) {
   unsigned int local, temp;
   while (1) {
     local = *lock;
-    if ((local & exclusiveSet) != 0) // Make sure exclusive not set first
+    // Make sure exclusive not set first
+    if ((local & exclusiveSet) != 0)
       return false;
-    if ((local & writeSet) != 0) // Make sure write not set first
+    // Make sure write not set first
+    if ((local & writeSet) != 0)
       return false;
-    if ((local & 1U) ==
-        0) // We reserved the write, now wait for lock to be free
-    {
+    // We reserved the write, now wait for lock to be free
+    if ((local & 1U) == 0) {
       temp = artsAtomicCswap(lock, local, local | exclusiveSet | writeSet | 1U);
-      if (temp == local) {
+      if (temp == local)
         return true;
-      }
     }
     return true;
   }
