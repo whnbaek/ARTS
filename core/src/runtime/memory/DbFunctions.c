@@ -364,7 +364,7 @@ void artsDbDecrementLatch(artsGuid_t guid) {
 }
 
 void artsDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
-                              uint32_t edtSlot) {
+                         uint32_t edtSlot) {
   struct artsDb *dbRes = artsRouteTableLookupItem(dbSrc);
   if (dbRes != NULL)
     artsAddDependenceToPersistentEvent(dbRes->eventGuid, edtDest, edtSlot);
@@ -546,8 +546,14 @@ void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
   for (int i = 0; i < depc; i++) {
     DPRINTF("Releasing %u", depv[i].guid);
     unsigned int owner = artsGuidGetRank(depv[i].guid);
+#ifdef SMART_DB
+    /// Smart DBs automatically decrement the latch count when the db is
+    /// released.
+    if (depv[i].mode == ARTS_DB_PIN || depv[i].mode == ARTS_DB_WRITE) {
+      artsDbDecrementLatch(depv[i].guid);
+    }
+#endif
     if (depv[i].guid != NULL_GUID && depv[i].mode == ARTS_DB_WRITE) {
-      DPRINTF(" - ARTS_DB_WRITE\n");
       // Signal we finished and progress frontier
       if (owner == artsGlobalRankId) {
         struct artsDb *db = ((struct artsDb *)depv[i].ptr - 1);
@@ -557,21 +563,15 @@ void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
       }
     } else if (depv[i].mode == ARTS_DB_ONCE_LOCAL ||
                depv[i].mode == ARTS_DB_ONCE) {
-      DPRINTF(" - ARTS_DB_ONCE\n");
       artsRouteTableInvalidateItem(depv[i].guid);
     } else if (depv[i].mode == ARTS_PTR) {
-      DPRINTF(" - ARTS_PTR\n");
       artsFree(depv[i].ptr);
     } else if (!gpu && depv[i].mode == ARTS_DB_LC) {
-      DPRINTF(" - ARTS_DB_LC\n");
       struct artsDb *db = ((struct artsDb *)depv[i].ptr) - 1;
       artsReaderUnlock(&db->reader);
     } else {
       if (artsRouteTableReturnDb(depv[i].guid, depv[i].mode != ARTS_DB_PIN)) {
-        DPRINTF(" - ARTS_DB_READ\n");
         DPRINTF("FREED A COPY!\n");
-      } else {
-        DPRINTF(" - is ARTS_DB_PIN: Skipping...\n");
       }
     }
   }
