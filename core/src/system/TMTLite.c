@@ -47,6 +47,7 @@
 #define __USE_GNU
 #include <pthread.h>
 #include <string.h>
+#include <sched.h>
 
 #include "arts/runtime/Globals.h"
 #include "arts/utils/Atomics.h"
@@ -86,9 +87,9 @@ void artsWriterLockYield(volatile unsigned int * readLock, volatile unsigned int
 {
     unsigned int toSwap = tmtLiteAliasId + 1;
     while(artsAtomicCswap(writeLock, 0U, toSwap) != 0U) { 
-        pthread_yield(); 
+        sched_yield(); 
         }
-    while((*readLock)) { pthread_yield(); }
+    while((*readLock)) { sched_yield(); }
     return;
 }
 
@@ -120,7 +121,7 @@ void artsTMTLiteShutdown() {
 void artsTMTLitePrivateCleanUp(unsigned int id)
 {
     DPRINTF("%u outstanding: %u\n",toCreateThreads, doneThreads);
-    while(toCreateThreads!=doneThreads) { pthread_yield(); }
+    while(toCreateThreads!=doneThreads) { sched_yield(); }
     uint64_t outstanding = artsLengthArrayList(threadToJoin[id]);
     for(uint64_t i=0; i<outstanding; i++)
     {
@@ -245,7 +246,7 @@ void artsYieldLiteContext()
 {
     unsigned int sourceId = artsThreadInfo.groupId;
     artsWriterUnlock(&threadWriterLock[sourceId]);
-    pthread_yield();
+    sched_yield();
 }
 
 void artsResumeLiteContext()
@@ -266,7 +267,7 @@ void artsTMTSchedulerYield()
     {
         // PRINTF("Scheduler Yield %u\n", outstanding[sourceId]);
         artsWriterUnlock(&threadWriterLock[sourceId]);
-        pthread_yield();
+        sched_yield();
         artsWriterLockYield(&threadReaderLock[sourceId], &threadWriterLock[sourceId]);
     }
 }

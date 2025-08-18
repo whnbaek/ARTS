@@ -45,13 +45,20 @@ extern "C" {
 
 #include "arts/gpu/GpuStream.h"
 #include "arts/runtime/RT.h"
+#ifdef USE_GPU
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#endif
 
 typedef struct {
   struct artsEdt wrapperEdt;
+#ifdef USE_GPU
   dim3 grid;
   dim3 block;
+#else
+  void *grid;
+  void *block;
+#endif
   int gpuToRunOn;
   artsGuid_t endGuid;
   artsGuid_t dataGuid;
@@ -70,6 +77,7 @@ void *artsCudaMalloc(unsigned int size);
 void artsCudaFree(void *ptr);
 void artsCudaMemCpyFromDev(void *dst, void *src, size_t count);
 void artsCudaMemCpyToDev(void *dst, void *src, size_t count);
+#ifdef USE_GPU
 artsGuid_t artsEdtCreateGpuDep(artsEdt_t funcPtr, unsigned int route,
                                uint32_t paramc, uint64_t *paramv, uint32_t depc,
                                dim3 grid, dim3 block, artsGuid_t endGuid,
@@ -113,10 +121,62 @@ artsGuid_t artsEdtCreateGpuWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
 artsGuid_t artsEdtCreateGpuLibWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
                                        uint32_t paramc, uint64_t *paramv,
                                        uint32_t depc, dim3 grid, dim3 block);
+#else
+// Stub implementations when GPU not enabled
+artsGuid_t artsEdtCreateGpuDep(artsEdt_t funcPtr, unsigned int route,
+                               uint32_t paramc, uint64_t *paramv, uint32_t depc,
+                               void *grid, void *block, artsGuid_t endGuid,
+                               uint32_t slot, artsGuid_t dataGuid,
+                               bool hasDepv);
+artsGuid_t artsEdtCreateGpu(artsEdt_t funcPtr, unsigned int route,
+                            uint32_t paramc, uint64_t *paramv, uint32_t depc,
+                            void *grid, void *block, artsGuid_t endGuid,
+                            uint32_t slot, artsGuid_t dataGuid);
+artsGuid_t artsEdtCreateGpuPT(artsEdt_t funcPtr, unsigned int route,
+                              uint32_t paramc, uint64_t *paramv, uint32_t depc,
+                              void *grid, void *block, artsGuid_t endGuid,
+                              uint32_t slot, unsigned int passSlot);
+artsGuid_t artsEdtCreateGpuPTDep(artsEdt_t funcPtr, unsigned int route,
+                                 uint32_t paramc, uint64_t *paramv,
+                                 uint32_t depc, void *grid, void *block,
+                                 artsGuid_t endGuid, uint32_t slot,
+                                 unsigned int passSlot, bool hasDepv);
+artsGuid_t artsEdtCreateGpuLib(artsEdt_t funcPtr, unsigned int route,
+                               uint32_t paramc, uint64_t *paramv, uint32_t depc,
+                               void *grid, void *block);
+artsGuid_t artsEdtCreateGpuPTWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
+                                      uint32_t paramc, uint64_t *paramv,
+                                      uint32_t depc, void *grid, void *block,
+                                      artsGuid_t endGuid, uint32_t slot,
+                                      unsigned int passSlot);
+artsGuid_t artsEdtCreateGpuDirect(artsEdt_t funcPtr, unsigned int route,
+                                  unsigned int gpu, uint32_t paramc,
+                                  uint64_t *paramv, uint32_t depc, void *grid,
+                                  void *block, artsGuid_t endGuid, uint32_t slot,
+                                  artsGuid_t dataGuid, bool hasDepv);
+artsGuid_t artsEdtCreateGpuLibDirect(artsEdt_t funcPtr, unsigned int route,
+                                     unsigned int gpu, uint32_t paramc,
+                                     uint64_t *paramv, uint32_t depc, void *grid,
+                                     void *block);
+artsGuid_t artsEdtCreateGpuWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
+                                    uint32_t paramc, uint64_t *paramv,
+                                    uint32_t depc, void *grid, void *block,
+                                    artsGuid_t endGuid, uint32_t slot,
+                                    artsGuid_t dataGuid);
+artsGuid_t artsEdtCreateGpuLibWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
+                                       uint32_t paramc, uint64_t *paramv,
+                                       uint32_t depc, void *grid, void *block);
+#endif
 
+#ifdef USE_GPU
 dim3 *artsGetGpuGrid();
 dim3 *artsGetGpuBlock();
 cudaStream_t *artsGetGpuStream();
+#else
+void *artsGetGpuGrid();
+void *artsGetGpuBlock();
+void *artsGetGpuStream();
+#endif
 int artsGetGpuId();
 unsigned int artsGetNumGpus();
 void artsPutInDbFromGpu(void *ptr, artsGuid_t dbGuid, unsigned int offset,
@@ -134,7 +194,11 @@ void internalLCSyncCPU(artsGuid_t acqGuid, struct artsDb *db);
 void internalLCSyncGPU(artsGuid_t acqGuid, struct artsDb *db);
 
 #define getGpuIndex() internalGetGpuIndex(paramv)
+#ifdef USE_GPU
 __device__ uint64_t internalGetGpuIndex(uint64_t *paramv);
+#else
+uint64_t internalGetGpuIndex(uint64_t *paramv);
+#endif
 
 #ifdef __cplusplus
 }

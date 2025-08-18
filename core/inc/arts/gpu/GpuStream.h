@@ -48,8 +48,12 @@ extern "C" {
 #include "arts/system/Debug.h"
 #include "arts/utils/ArrayList.h"
 #include "arts/utils/Atomics.h"
-#include <cuda_runtime.h>
 
+#ifdef USE_GPU
+#include <cuda_runtime.h>
+#endif
+
+#ifdef USE_GPU
 #define CHECKCORRECT(x)                                                        \
   {                                                                            \
     cudaError_t err;                                                           \
@@ -58,6 +62,12 @@ extern "C" {
       artsDebugGenerateSegFault();                                             \
     }                                                                          \
   }
+#else
+#define CHECKCORRECT(x)                                                        \
+  {                                                                            \
+    (void)(x); /* Suppress unused variable warning when GPU not enabled */     \
+  }
+#endif
 
 typedef struct {
   unsigned int gpuId;
@@ -71,6 +81,7 @@ typedef struct {
   int device;
   volatile uint64_t availGlobalMem;
   volatile uint64_t totalGlobalMem;
+#ifdef USE_GPU
   struct cudaDeviceProp prop;
   volatile float occupancy;
   volatile unsigned int deviceLock;
@@ -79,6 +90,15 @@ typedef struct {
   volatile unsigned int runningEdts;
   volatile unsigned int availableThreads;
   cudaStream_t stream;
+#else
+  volatile float occupancy;
+  volatile unsigned int deviceLock;
+  volatile unsigned int totalEdts;
+  volatile unsigned int availableEdtSlots;
+  volatile unsigned int runningEdts;
+  volatile unsigned int availableThreads;
+  void *stream; /* Placeholder when GPU not enabled */
+#endif
 } artsGpu_t;
 
 extern artsGpu_t *artsGpus;
@@ -89,6 +109,7 @@ artsGpu_t *artsFindGpu(void *data);
 void artsInitPerGpuWrapper(int argc, char **argv);
 void artsWorkerInitGpus();
 void artsCleanupGpus();
+#ifdef USE_GPU
 void artsScheduleToGpuInternal(artsEdt_t fnPtr, uint32_t paramc,
                                uint64_t *paramv, uint32_t depc,
                                artsEdtDep_t *depv, dim3 grid, dim3 block,
@@ -97,6 +118,16 @@ void artsScheduleToGpu(artsEdt_t fnPtr, uint32_t paramc, uint64_t *paramv,
                        uint32_t depc, artsEdtDep_t *depv, void *edtPtr,
                        artsGpu_t *artsGpu);
 void CUDART_CB artsWrapUp(cudaStream_t stream, cudaError_t status, void *data);
+#else
+void artsScheduleToGpuInternal(artsEdt_t fnPtr, uint32_t paramc,
+                               uint64_t *paramv, uint32_t depc,
+                               artsEdtDep_t *depv, void *grid, void *block,
+                               void *edtPtr, artsGpu_t *artsGpu);
+void artsScheduleToGpu(artsEdt_t fnPtr, uint32_t paramc, uint64_t *paramv,
+                       uint32_t depc, artsEdtDep_t *depv, void *edtPtr,
+                       artsGpu_t *artsGpu);
+void artsWrapUp(void *stream, int status, void *data);
+#endif
 void artsGpuSynchronize(artsGpu_t *artsGpu);
 void artsGpuStreamBusy(artsGpu_t *artsGpu);
 artsGpu_t *artsGpuScheduled(unsigned id);
@@ -105,9 +136,15 @@ void artsStoreNewEdts(void *edt);
 void artsHandleNewEdts();
 void freeGpuItem(artsRouteItem_t *item);
 
+#ifdef USE_GPU
 extern __thread dim3 *artsLocalGrid;
 extern __thread dim3 *artsLocalBlock;
 extern __thread cudaStream_t *artsLocalStream;
+#else
+extern __thread void *artsLocalGrid;
+extern __thread void *artsLocalBlock;
+extern __thread void *artsLocalStream;
+#endif
 extern __thread int artsLocalGpuId;
 
 extern artsGpu_t *artsGpus;
