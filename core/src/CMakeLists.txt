@@ -75,6 +75,10 @@ else()
         $<TARGET_OBJECTS:system>
         $<TARGET_OBJECTS:utils>
     )
+    if(APPLE)
+        # Allow unresolved symbols to bind at runtime (needed for weak app hooks)
+        target_link_options(arts PRIVATE "-Wl,-undefined,dynamic_lookup")
+    endif()
     message("PATHS INSTALLED: " ${M_LIB} ${RT_LIB} ${PTHREAD_LIB} ${RDMACM_LIB} ${HWLOC_LIB})
 endif()
 

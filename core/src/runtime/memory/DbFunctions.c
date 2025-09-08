@@ -60,7 +60,8 @@
 #include "artsGpuRuntime.h"
 #endif
 
-#define DPRINTF(...)
+#define DPRINTF(...) 
+// PRINTF(__VA_ARGS__)
 
 artsTypeName;
 
