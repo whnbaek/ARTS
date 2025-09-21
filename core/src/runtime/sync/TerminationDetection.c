@@ -42,6 +42,7 @@
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gas/RouteTable.h"
 #include "arts/runtime/Globals.h"
+#include "arts/runtime/RT.h"
 #include "arts/runtime/compute/EdtFunctions.h"
 #include "arts/runtime/network/RemoteFunctions.h"
 #include "arts/system/Debug.h"
@@ -543,8 +544,10 @@ void artsYield() {
 
 bool artsWaitOnHandle(artsGuid_t epochGuid) {
   artsGuid_t *guid = artsCheckEpochIsRoot(epochGuid);
+  PRINTF("artsWaitOnHandle %lu\n", epochGuid);
   // For now lets leave this rule here
   if (guid) {
+    PRINTF(" -> guid %lu\n", *guid);
     artsGuid_t local = *guid;
     *guid = NULL_GUID; // Unset
     unsigned int flag = 1;
@@ -572,6 +575,7 @@ bool artsWaitOnHandle(artsGuid_t epochGuid) {
 
       return true;
     }
+    PRINTF(" -> no ticket\n");
   }
   return false;
 }
