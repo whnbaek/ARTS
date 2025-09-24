@@ -47,6 +47,9 @@ void artsDebugGenerateSegFault();
 void artsTurnOnCoreDumps();
 char *getBackTrace(unsigned int skip);
 
+// Include the runtime debug and print interfaces
+#include "ArtsPrint.h"
+
 #ifdef __cplusplus
 }
 #endif

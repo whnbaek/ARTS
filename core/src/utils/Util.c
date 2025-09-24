@@ -59,7 +59,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define DPRINTF(...)
 
 extern __thread struct artsEdt *currentEdt;
 extern unsigned int numNumaDomains;

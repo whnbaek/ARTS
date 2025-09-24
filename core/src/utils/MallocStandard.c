@@ -52,7 +52,7 @@ void *artsMalloc(size_t size) {
   size += sizeof(uint64_t);
   void *address;
   if (posix_memalign(&address, 16, size)) {
-    PRINTF("Out of Memory\n");
+    ARTS_INFO("Out of Memory");
     artsDebugGenerateSegFault();
   }
   uint64_t *temp = (uint64_t *)address;
@@ -78,7 +78,7 @@ void *artsCalloc(size_t size) {
   size += sizeof(uint64_t);
   void *address;
   if (posix_memalign(&address, 16, size)) {
-    PRINTF("Out of Memory\n");
+    ARTS_INFO("Out of Memory");
     artsDebugGenerateSegFault();
   }
   zeroMemory(address, size);

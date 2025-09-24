@@ -221,7 +221,7 @@ void enqueue(Object arg, artsQueue *queue) {
 
     if (crq_is_closed(t)) {
     alloc:
-      //            PRINTF("Allocing!\n");
+      //            ARTS_INFO("Allocing!");
       nrq = artsMallocAlign(sizeof(RingQueue), 128);
       init_ring(nrq);
 

@@ -37,11 +37,9 @@
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
 #include "arts/gas/OutOfOrderList.h"
-#include "arts/utils/Atomics.h"
+#include "arts/runtime/Globals.h"
 #include "arts/system/Debug.h"
-
-#define DPRINTF
-// #define DPRINTF(...) PRINTF(__VA_ARGS__)
+#include "arts/utils/Atomics.h"
 
 #define fireLock 1U
 #define resetLock 2U
@@ -113,7 +111,8 @@ bool artsOutOfOrderListAddItem(struct artsOutOfOrderList *addToMe, void *item) {
   }
   unsigned int pos = artsAtomicFetchAdd(&addToMe->count, 1U);
 
-  DPRINTF("ADDING to OO LIST %u %u %p\n", pos, addToMe->count, &addToMe->count);
+  ARTS_DEBUG("ADDING to OO LIST %u %u %p", pos, addToMe->count,
+             &addToMe->count);
   unsigned int numElements = pos / OOPERELEMENT;
   unsigned int elementPos = pos % OOPERELEMENT;
 
@@ -130,17 +129,13 @@ bool artsOutOfOrderListAddItem(struct artsOutOfOrderList *addToMe, void *item) {
   }
   if (artsAtomicCswapPtr((volatile void **)&current->array[elementPos],
                          (void *)0, item))
-    PRINTF("OO pos not empty...\n");
-  readerOOUnlock(addToMe);
+    readerOOUnlock(addToMe);
   return true;
 }
 
 void artsOutOfOrderListReset(struct artsOutOfOrderList *list) {
   if (writerTryOOLock(list, resetLock)) {
     list->isFired = false;
-    if (list->count) {
-      PRINTF("Reseting but OO is not empty\n");
-    }
     writerOOUnlock(list);
   }
 }
@@ -170,7 +165,7 @@ void artsOutOfOrderListFireCallback(struct artsOutOfOrderList *fireMe,
                                     void *localGuidAddress,
                                     void (*callback)(void *, void *)) {
   if (writerTryOOLock(fireMe, fireLock)) {
-    DPRINTF("FIRING OO LIST %u\n", fireMe->count);
+    ARTS_DEBUG("FIRING OO LIST %u", fireMe->count);
     fireMe->isFired = true;
     unsigned int pos = fireMe->count;
     unsigned int j = 0;

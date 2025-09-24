@@ -40,13 +40,11 @@
 #include "arts/arts.h"
 #include "arts/network/RemoteLauncher.h"
 #include "arts/system/Config.h"
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <limits.h>
 
-#define DPRINTF(...)
-// #define DPRINTF( ... ) PRINTF( __VA_ARGS__ )
 
 static int artsShellQuote(const char *input, char *output, size_t outputSize) {
   size_t outIndex = 0;
@@ -138,40 +136,51 @@ void artsRemoteLauncherSSHStartupProcesses(
     unsigned int finalLength = 0;
 
     if (killMode) {
-      // Kill any previously running instance by process name (basename, up to 15 chars)
+      // Kill any previously running instance by process name (basename, up to
+      // 15 chars)
       if (binaryName[0] != '\0') {
-        finalLength += snprintf(command + finalLength, sizeof(command) - finalLength,
-                               "pkill %s", binaryName);
+        finalLength +=
+            snprintf(command + finalLength, sizeof(command) - finalLength,
+                     "pkill %s", binaryName);
       } else if (argc > 0 && argv && argv[0]) {
         // Extract basename from argv[0] for pkill
         const char *argvBase = argv[0];
         char *argvSlash = strrchr(argv[0], '/');
-        if (argvSlash) argvBase = argvSlash + 1;
+        if (argvSlash)
+          argvBase = argvSlash + 1;
 
         // Limit to 15 chars for pkill
         char pkillName[16];
         strncpy(pkillName, argvBase, 15);
         pkillName[15] = '\0';
 
-        finalLength += snprintf(command + finalLength, sizeof(command) - finalLength,
-                               "pkill %s", pkillName);
+        finalLength +=
+            snprintf(command + finalLength, sizeof(command) - finalLength,
+                     "pkill %s", pkillName);
       } else {
         continue;
       }
     } else {
-      // Launch mode: ensure the remote shell changes to the same working directory and launches the binary
+      // Launch mode: ensure the remote shell changes to the same working
+      // directory and launches the binary
       if (binaryName[0] != '\0') {
-        finalLength += snprintf(command + finalLength, sizeof(command) - finalLength,
-                                "cd %s && ./%s", cwd, binaryName);
+        finalLength +=
+            snprintf(command + finalLength, sizeof(command) - finalLength,
+                     "cd %s && ./%s", cwd, binaryName);
         // Pass through any arguments beyond argv[0] if provided
         for (j = 1; j < (int)argc; j++) {
-          finalLength += snprintf(command + finalLength, sizeof(command) - finalLength, " %s", argv[j]);
+          finalLength +=
+              snprintf(command + finalLength, sizeof(command) - finalLength,
+                       " %s", argv[j]);
         }
       } else {
         // Fallback: attempt to use argv if available, otherwise just cd
-        finalLength += snprintf(command + finalLength, sizeof(command) - finalLength, "cd %s", cwd);
+        finalLength += snprintf(command + finalLength,
+                                sizeof(command) - finalLength, "cd %s", cwd);
         for (j = 0; j < (int)argc; j++) {
-          finalLength += snprintf(command + finalLength, sizeof(command) - finalLength, " %s", argv[j]);
+          finalLength +=
+              snprintf(command + finalLength, sizeof(command) - finalLength,
+                       " %s", argv[j]);
         }
       }
     }
@@ -195,15 +204,10 @@ void artsRemoteLauncherSSHStartupProcesses(
       // Child process: execute SSH command
       // Use a non-interactive ssh invocation and run the command via a shell
       // Passing the command to `sh -c` avoids fragile local quoting
-      execlp("ssh", "ssh",
-             "-f",
-             "-o", "StrictHostKeyChecking=no",
-             "-o", "ConnectTimeout=10",
-             "-o", "ServerAliveInterval=5",
-             "-o", "ServerAliveCountMax=3",
-             config->table[i].ipAddress,
-             wrappedCommand,
-             (char *)NULL);
+      execlp("ssh", "ssh", "-f", "-o", "StrictHostKeyChecking=no", "-o",
+             "ConnectTimeout=10", "-o", "ServerAliveInterval=5", "-o",
+             "ServerAliveCountMax=3", config->table[i].ipAddress,
+             wrappedCommand, (char *)NULL);
 
       // If execlp fails
       exit(1);

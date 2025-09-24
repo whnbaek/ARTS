@@ -73,8 +73,6 @@
 // #include <linux/if_packet.h>
 // #include <linux/if_arp.h>
 
-// #define DPRINTF( ... ) PRINTF( __VA_ARGS__ )
-#define DPRINTF(...)
 
 struct artsConfig *artsGlobalMessageTable;
 unsigned int ports;
@@ -120,7 +118,7 @@ bool hostnameToIp(char *hostName, char *ip) {
     freeaddrinfo(result);
     return true;
   }
-  PRINTF("%s\n", gai_strerror(error));
+  ARTS_INFO("%s", gai_strerror(error));
 
   return false;
 }
@@ -173,7 +171,7 @@ void artsServerFixIbNames(struct artsConfig *config) {
       error = getaddrinfo(stringFixed, NULL, NULL, &result);
 
       if (error == 0) {
-        DPRINTF("%s\n", stringFixed);
+        ARTS_DEBUG("%s", stringFixed);
         artsRemoteFixNames(pre[i], curLength, false,
                            &artsGlobalMessageTable->table[j].ipAddress);
         artsFree(stringFixed);
@@ -191,7 +189,7 @@ void artsServerFixIbNames(struct artsConfig *config) {
       *(stringFixed + curLength + testStrLength) = '\0';
       error = getaddrinfo(stringFixed, NULL, NULL, &result);
       if (error == 0) {
-        DPRINTF("%s\n", stringFixed);
+        ARTS_DEBUG("%s", stringFixed);
         artsRemoteFixNames(post[i], curLength, true,
                            &artsGlobalMessageTable->table[j].ipAddress);
         artsFree(stringFixed);
@@ -211,7 +209,7 @@ bool artsServerSetIP(struct artsConfig *config) {
     // result = hostnameToIp("www.google.com", ipList+100*i);
 
     if (!result) {
-      PRINTF("Cannot get ip address for '%s'\n", config->table[i].ipAddress);
+      ARTS_INFO("Cannot get ip address for '%s'", config->table[i].ipAddress);
       exit(1);
     }
   }
@@ -234,7 +232,7 @@ bool artsServerSetIP(struct artsConfig *config) {
       if (ifa->ifa_addr->sa_family == AF_INET) {
         sa = (struct sockaddr_in *)ifa->ifa_addr;
         inet_ntop(AF_INET, &sa->sin_addr, addr, 100);
-        DPRINTF("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
+        ARTS_DEBUG("Interface: %s\tAddress: %s", ifa->ifa_name, addr);
 
         for (int i = 0; i < config->tableLength && !found; i++) {
           if (strcmp(addr, ipList + 100 * i) == 0) {
@@ -247,7 +245,7 @@ bool artsServerSetIP(struct artsConfig *config) {
       } else if (ifa->ifa_addr->sa_family == AF_INET6) {
         sa6 = (struct sockaddr_in6 *)ifa->ifa_addr;
         inet_ntop(AF_INET6, &sa6->sin6_addr, addr, 100);
-        DPRINTF("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
+        ARTS_DEBUG("Interface: %s\tAddress: %s", ifa->ifa_name, addr);
 
         for (int i = 0; i < config->tableLength && !found; i++) {
           if (strcmp(addr, ipList + 100 * i) == 0) {
@@ -274,9 +272,9 @@ void artsLLServerSetup(struct artsConfig *config) {
 #endif
 
   if (!artsServerSetIP(config) && config->nodes > 1) {
-    // PRINTF("[%d]Could not connect to %s\n", artsGlobalRankId,
+    // ARTS_INFO("[%d]Could not connect to %s", artsGlobalRankId,
     // config->netInterface);
-    PRINTF("Could not resolve ip to any device\n");
+    ARTS_INFO("Could not resolve ip to any device");
     exit(1);
   }
 }
@@ -297,16 +295,16 @@ void artsLLServerShutdown() {
 }
 
 unsigned int artsRemoteGetMyRank() {
-  DPRINTF("My rank %d\n", artsGlobalMessageTable->myRank);
+  ARTS_DEBUG("My rank %d", artsGlobalMessageTable->myRank);
   return artsGlobalMessageTable->myRank;
 }
 
 static inline bool artsRemoteConnect(int rank, unsigned int port) {
 
-  DPRINTF("connecy try %d\n", rank);
+  ARTS_DEBUG("connecy try %d", rank);
   // sleep(10);
   if (!remoteConnectionAlive[rank * ports + port]) {
-    DPRINTF("connecy %d %d\n", rank, remoteSocketSendList[rank * ports + port]);
+    ARTS_DEBUG("connecy %d %d", rank, remoteSocketSendList[rank * ports + port]);
     artsPrintSocketAddr(&remoteServerSendList[rank * ports + port]);
     int res = rconnect(
         remoteSocketSendList[rank * ports + port],
@@ -316,10 +314,10 @@ static inline bool artsRemoteConnect(int rank, unsigned int port) {
       // if(artsGlobalRankId==0)
       //     artsDebugGenerateSegFault();
       void *ptrCrap;
-      DPRINTF("%d error %s %d %p %d %s\n", rank, strerror(errno), errno,
+      ARTS_DEBUG("%d error %s %d %p %d %s", rank, strerror(errno), errno,
               ptrCrap, remoteSocketSendList[rank],
               artsGlobalMessageTable->table[rank].ipAddress);
-      DPRINTF("[%d]Connect Failed to rank %d %d\n", artsGlobalRankId, rank,
+      ARTS_DEBUG("[%d]Connect Failed to rank %d %d", artsGlobalRankId, rank,
               res);
 
       remoteConnectionAlive[rank] = false;
@@ -335,7 +333,7 @@ static inline bool artsRemoteConnect(int rank, unsigned int port) {
         remoteSocketSendList[rank * ports + port] = artsGetNewSocket();
       }
 
-      DPRINTF("Connect now succedded to rank %d %d\n", rank, res);
+      ARTS_DEBUG("Connect now succedded to rank %d %d", rank, res);
       remoteConnectionAlive[rank * ports + port] = true;
 
       return true;
@@ -364,8 +362,8 @@ int artsActualSend(char *message, unsigned int length, int rank, int port) {
   if (res < 0) {
     if (errno != EAGAIN) {
       struct artsRemotePacket *pk = (void *)message;
-      PRINTF("artsRemoteSendRequest %u Socket appears to be closed to rank %d: "
-             " %s\n",
+      ARTS_INFO("artsRemoteSendRequest %u Socket appears to be closed to rank %d: "
+             " %s",
              pk->messageType, rank, strerror(errno));
       artsRuntimeStop();
       return -1;
@@ -408,7 +406,7 @@ unsigned int artsRemoteSendPayloadRequest(int rank, unsigned int queue,
 }
 
 bool artsRemoteSetupIncoming() {
-  // PRINTF("%d\n", FD_SETSIZE);
+  // ARTS_INFO("%d", FD_SETSIZE);
   int i, j, k, pos;
   int inPort = artsGlobalMessageTable->port;
   socklen_t sLength = sizeof(struct sockaddr);
@@ -439,30 +437,30 @@ bool artsRemoteSetupIncoming() {
               sizeof(localServerAddr[i]));
 
     if (res < 0) {
-      PRINTF("Bind Failed\n");
-      PRINTF("error %s\n", strerror(errno));
+      ARTS_INFO("Bind Failed");
+      ARTS_INFO("error %s", strerror(errno));
       return false;
     }
 
     res = rlisten(localSocketRecieve[i], 2 * count);
 
     if (res < 0) {
-      PRINTF("Listening Failed\n");
-      PRINTF("error %s\n", strerror(errno));
+      ARTS_INFO("Listening Failed");
+      ARTS_INFO("error %s", strerror(errno));
       return false;
     }
   }
 
   FD_ZERO(&readSet);
   for (i = 0; i < artsGlobalMessageTable->tableLength; i++) {
-    DPRINTF("%d %d\n", artsGlobalMessageTable->myRank,
+    ARTS_DEBUG("%d %d", artsGlobalMessageTable->myRank,
             artsGlobalMessageTable->table[i].rank);
     if (artsGlobalMessageTable->myRank ==
         artsGlobalMessageTable->table[i].rank) {
-      DPRINTF("Receive go %d\n", i);
+      ARTS_DEBUG("Receive go %d", i);
       for (j = 0; j < count; j++) {
         for (int z = 0; z < ports; z++) {
-          DPRINTF("%d\n", j);
+          ARTS_DEBUG("%d", j);
           sLength = sizeof(struct sockaddr_in);
           // remoteSocketRecieveList[j] = raccept(localSocketRecieve, (struct
           // sockaddr *)&remoteServerRecieveList[j], &sLength );
@@ -471,11 +469,11 @@ bool artsRemoteSetupIncoming() {
 
           if (remoteSocketRecieveList[z + j * ports] < 0) {
             int retry = 0;
-            PRINTF("Accept Failed\n");
-            PRINTF("error %s\n", strerror(errno));
+            ARTS_INFO("Accept Failed");
+            ARTS_INFO("error %s", strerror(errno));
             int retryLimit = 3;
             while (remoteSocketRecieveList[z + j * ports] < 0) {
-              PRINTF("Retrying %d more times\n", retryLimit - retry);
+              ARTS_INFO("Retrying %d more times", retryLimit - retry);
               if (retry == retryLimit) {
                 exit(1);
               }
@@ -483,8 +481,8 @@ bool artsRemoteSetupIncoming() {
                   localSocketRecieve[z], (struct sockaddr *)&test, &sLength);
               retry++;
               if (remoteSocketRecieveList[z + j * ports] < 0) {
-                PRINTF("Accept Failed\n");
-                PRINTF("error %s\n", strerror(errno));
+                ARTS_INFO("Accept Failed");
+                ARTS_INFO("error %s", strerror(errno));
               }
             }
           }
@@ -495,10 +493,10 @@ bool artsRemoteSetupIncoming() {
         }
       }
     } else {
-      DPRINTF("Connect go %d\n", i);
+      ARTS_DEBUG("Connect go %d", i);
       for (int z = 0; z < ports; z++) {
         if (!artsRemoteConnect(i, z)) {
-          PRINTF("Could not create initial connection\n");
+          ARTS_INFO("Could not create initial connection");
           return false;
         }
       }
@@ -542,7 +540,7 @@ static __thread bool maxOutWorking;
 void artsRemotSetThreadInboundQueues(unsigned int start, unsigned int stop) {
   threadStart = start;
   threadStop = stop;
-  // MASTER_PRINTF("%d %d\n", start, stop);
+  // ARTS_INFO_MASTER("%d %d", start, stop);
   unsigned int size = stop - start;
   bypassBuf = artsMalloc(sizeof(char *) * size);
   bypassPacketSize = artsMalloc(sizeof(unsigned int) * size);
@@ -558,7 +556,7 @@ void artsRemotSetThreadInboundQueues(unsigned int start, unsigned int stop) {
 bool maxOutBuffs(unsigned int ignore) {
   int timeOut = 1, res, res2;
   struct artsRemotePacket *packet;
-  // PRINTF("MAX\n");
+  // ARTS_INFO("MAX");
   res = rpoll(pollIncoming + threadStart, threadStop - threadStart, timeOut);
   unsigned int pos;
 
@@ -567,7 +565,7 @@ bool maxOutBuffs(unsigned int ignore) {
     artsRuntimeStop();
   }
   if (res > 0) {
-    // PRINTF("MAX LOOP\n");
+    // ARTS_INFO("MAX LOOP");
     timeOut = 1;
     for (int i = threadStart; i < threadStop; i++) {
       pos = i - threadStart;
@@ -584,16 +582,16 @@ bool maxOutBuffs(unsigned int ignore) {
           reRecieveRes[pos] = 0;
           // if(packet->size > 5000000)
           //     artsDebugGenerateSegFault();
-          // PRINTF("Here res %p %d %d\n", packet, res, pos);
+          // ARTS_INFO("Here res %p %d %d", packet, res, pos);
         }
         // spaceLeft = bypassPacketSize[pos];
         if (res > 0) {
-          DPRINTF("gg %d %d\n", res, packet->rank);
+          ARTS_DEBUG("gg %d %d", res, packet->rank);
           // spaceLeft-=res;
           while (res < bypassPacketSize[pos]) {
-            DPRINTF("POS Buffffff %d %d\n", res, packet->size);
+            ARTS_DEBUG("POS Buffffff %d %d", res, packet->size);
             if (bypassBuf[pos] != (char *)packet) {
-              DPRINTF("memmove\n");
+              ARTS_DEBUG("memmove");
               memmove(bypassBuf[pos], packet, res);
               packet = (struct artsRemotePacket *)bypassBuf[pos];
               // spaceLeft = bypassPacketSize[pos];
@@ -601,18 +599,18 @@ bool maxOutBuffs(unsigned int ignore) {
             res2 = rrecv(remoteSocketRecieveList[i], bypassBuf[pos] + res,
                          bypassPacketSize[pos] - res, MSG_DONTWAIT);
 
-            DPRINTF("res %d %d\n", res, res2);
+            ARTS_DEBUG("res %d %d", res, res2);
             if (res2 < 0) {
               if (errno != EAGAIN) {
-                PRINTF("Error on recv return 0 %d %d\n", errno, EAGAIN);
-                PRINTF("error %s\n", strerror(errno));
+                ARTS_INFO("Error on recv return 0 %d %d", errno, EAGAIN);
+                ARTS_INFO("error %s", strerror(errno));
                 artsShutdown();
                 artsRuntimeStop();
               }
 
               reRecieveRes[pos] = res;
               maxIncoming[pos] = true;
-              // PRINTF("Here\n");
+              // ARTS_INFO("Here");
               // reRecievePacket[pos] = packet;
               break;
             }
@@ -622,13 +620,13 @@ bool maxOutBuffs(unsigned int ignore) {
           maxIncoming[pos] = true;
           reRecieveRes[pos] = res;
         } else if (res == -1) {
-          PRINTF("Error on recv socket return 0\n");
-          PRINTF("error %s\n", strerror(errno));
+          ARTS_INFO("Error on recv socket return 0");
+          ARTS_INFO("error %s", strerror(errno));
           artsShutdown();
           artsRuntimeStop();
           return false;
         } else if (res == 0) {
-          // PRINTF("Hmm socket close?\n");
+          // ARTS_INFO("Hmm socket close?");
           artsShutdown();
           artsRuntimeStop();
           return false;
@@ -660,7 +658,7 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
   bool packetIncomingOnASocket = false;
   bool gotoNext = false;
   if (res > 0) {
-    // PRINTF("POLL\n");
+    // ARTS_INFO("POLL");
     timeOut = 1;
     maxOutWorking = true;
     while (maxOutWorking) {
@@ -673,10 +671,10 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
         //     return false;
         // if( maxIncoming[pos] )
         if (pollIncoming[i].revents & POLLIN) {
-          // PRINTF("Here2\n");
+          // ARTS_INFO("Here2");
           maxIncoming[pos] = false;
           if (reRecieveRes[pos] == 0) {
-            // PRINTF("Here3a\n");
+            // ARTS_INFO("Here3a");
             packet = (struct artsRemotePacket *)bypassBuf[pos];
             res = rrecv(remoteSocketRecieveList[i], bypassBuf[pos],
                         bypassPacketSize[pos], 0);
@@ -685,24 +683,24 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
             packet = (struct artsRemotePacket *)bypassBuf[pos];
             res = reRecieveRes[pos];
             reRecieveRes[pos] = 0;
-            // PRINTF("Here3\n");
+            // ARTS_INFO("Here3");
             // if(packet->size > 5000000)
             //     artsDebugGenerateSegFault();
-            // PRINTF("Here res %p %d %d\n", packet, res, pos);
+            // ARTS_INFO("Here res %p %d %d", packet, res, pos);
           }
           // spaceLeft = bypassPacketSize[pos];
           if (res > 0) {
             packetIncomingOnASocket = true;
-            DPRINTF("gg %d %d\n", res, packet->rank);
+            ARTS_DEBUG("gg %d %d", res, packet->rank);
             // spaceLeft-=res;
             while (res > 0) {
               // if(!maxOutBuffs(i))
               //     return false;
               while (res < sizeof(struct artsRemotePacket)) {
-                // PRINTF("Here4\n");
-                DPRINTF("POS Buffffff %d %d\n", res, packet->size);
+                // ARTS_INFO("Here4");
+                ARTS_DEBUG("POS Buffffff %d %d", res, packet->size);
                 if (bypassBuf[pos] != (char *)packet) {
-                  DPRINTF("memmove\n");
+                  ARTS_DEBUG("memmove");
                   memmove(bypassBuf[pos], packet, res);
                   packet = (struct artsRemotePacket *)bypassBuf[pos];
                   // spaceLeft = bypassPacketSize[pos];
@@ -710,11 +708,11 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
                 res2 = rrecv(remoteSocketRecieveList[i], bypassBuf[pos] + res,
                              bypassPacketSize[pos] - res, 0);
 
-                DPRINTF("res %d %d\n", res, res2);
+                ARTS_DEBUG("res %d %d", res, res2);
                 if (res2 < 0) {
                   if (errno != EAGAIN) {
-                    PRINTF("Error on recv return 0 %d %d\n", errno, EAGAIN);
-                    PRINTF("error %s\n", strerror(errno));
+                    ARTS_INFO("Error on recv return 0 %d %d", errno, EAGAIN);
+                    ARTS_INFO("error %s", strerror(errno));
                     artsShutdown();
                     artsRuntimeStop();
                   }
@@ -731,11 +729,11 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
               if (gotoNext)
                 break;
 
-              DPRINTF("gg2 %d %d %d %d\n", res, packet->rank, packet->size,
+              ARTS_DEBUG("gg2 %d %d %d %d", res, packet->rank, packet->size,
                       packet->messageType);
 
               if (bypassPacketSize[pos] < packet->size) {
-                // PRINTF("Here5\n");
+                // ARTS_INFO("Here5");
                 char *nextBuf = artsMalloc(packet->size * 4);
 
                 memcpy(nextBuf, bypassBuf[pos], bypassPacketSize[pos]);
@@ -756,15 +754,15 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
               }
 
               while (res < packet->size) {
-                // PRINTF("Here6\n");
-                DPRINTF("POS Buffffff a %d %d\n", res, packet->size);
+                // ARTS_INFO("Here6");
+                ARTS_DEBUG("POS Buffffff a %d %d", res, packet->size);
                 // spaceLeft = (bypassPacketSize[pos] - (((char *)packet) -
-                // bypassBuf[pos])) - res; PRINTF("%d %d %d %d\n", spaceLeft,
+                // bypassBuf[pos])) - res; ARTS_INFO("%d %d %d %d", spaceLeft,
                 // ((char *)packet) - bypassBuf[pos], res, packet->size);
                 // if(bypassBuf[pos]!=(char*)packet && (packet->size-res) >
                 // spaceLeft )
                 if (bypassBuf[pos] != (char *)packet) {
-                  DPRINTF("memmove fix\n");
+                  ARTS_DEBUG("memmove fix");
                   memmove(bypassBuf[pos], packet, res);
                   packet = (struct artsRemotePacket *)bypassBuf[pos];
                   // spaceLeft = bypassPacketSize[pos];
@@ -779,13 +777,13 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
                 // 0 );
                 if (res2 < 0) {
                   if (errno != EAGAIN) {
-                    PRINTF("Error on recv return 0 %d %d\n", errno, EAGAIN);
-                    PRINTF("error %s\n", strerror(errno));
+                    ARTS_INFO("Error on recv return 0 %d %d", errno, EAGAIN);
+                    ARTS_INFO("error %s", strerror(errno));
                     artsShutdown();
                     artsRuntimeStop();
                   }
 
-                  // PRINTF("Here %p %d %d\n", packet, res, pos);
+                  // ARTS_INFO("Here %p %d %d", packet, res, pos);
 
                   reRecieveRes[pos] = res;
                   // reRecievePacket[pos] = packet;
@@ -795,7 +793,7 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
                 }
                 // spaceLeft-=res2;
                 res += res2;
-                DPRINTF("res %d %d\n", res, res2);
+                ARTS_DEBUG("res %d %d", res, res2);
               }
               if (gotoNext)
                 break;
@@ -803,8 +801,8 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
               artsServerProcessPacket(packet);
 
               res -= packet->size;
-              // PRINTF("Here 8 %d\n", res);
-              DPRINTF("PACKET move %d %d\n", res, packet->size);
+              // ARTS_INFO("Here 8 %d", res);
+              ARTS_DEBUG("PACKET move %d %d", res, packet->size);
 
               packet =
                   (struct artsRemotePacket *)(((char *)packet) + packet->size);
@@ -814,13 +812,13 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
               // break;
             }
           } else if (res == -1) {
-            PRINTF("Error on recv socket return 0\n");
-            PRINTF("error %s\n", strerror(errno));
+            ARTS_INFO("Error on recv socket return 0");
+            ARTS_INFO("error %s", strerror(errno));
             artsShutdown();
             artsRuntimeStop();
             return false;
           } else if (res == 0) {
-            // PRINTF("Hmm socket close?\n");
+            // ARTS_INFO("Hmm socket close?");
             artsShutdown();
             artsRuntimeStop();
             return false;
@@ -866,16 +864,16 @@ void artsServerPingPongTestRecieve(char *inBuffer, int inPacketSize) {
                            packetSize - res, 0);
               res += res2;
               if (res2 == -1) {
-                PRINTF("Error on recv return 0\n");
-                PRINTF("error %s\n", strerror(errno));
+                ARTS_INFO("Error on recv return 0");
+                ARTS_INFO("error %s", strerror(errno));
                 artsShutdown();
                 return;
               }
             }
 
-            // PRINTF("Here\n");
+            // ARTS_INFO("Here");
             while (res < packet->size) {
-              // PRINTF("Here %d %d\n", res, packet->size);
+              // ARTS_INFO("Here %d %d", res, packet->size);
 
               if (buf != (char *)packet) {
                 memmove(buf, packet, res);
@@ -885,8 +883,8 @@ void artsServerPingPongTestRecieve(char *inBuffer, int inPacketSize) {
                            packetSize - res, 0);
               res += res2;
               if (res2 == -1) {
-                PRINTF("Error on recv return 0\n");
-                PRINTF("error %s\n", strerror(errno));
+                ARTS_INFO("Error on recv return 0");
+                ARTS_INFO("error %s", strerror(errno));
                 artsShutdown();
                 return;
               }
@@ -898,9 +896,9 @@ void artsServerPingPongTestRecieve(char *inBuffer, int inPacketSize) {
               artsUpdatePerformanceMetric(artsFreeBW + packet->messageType,
                                           artsThread, 1, false);
               artsUpdatePacketInfo(packet->size);
-              // PRINTF("Recv Packet %d %d\n", res, packet->size);
+              // ARTS_INFO("Recv Packet %d %d", res, packet->size);
             } else {
-              PRINTF("Shit Packet %d %d %d\n", packet->messageType,
+              ARTS_INFO("Shit Packet %d %d %d", packet->messageType,
                      packet->size, packet->rank);
             }
             res -= packet->size;
@@ -908,12 +906,12 @@ void artsServerPingPongTestRecieve(char *inBuffer, int inPacketSize) {
                 (struct artsRemotePacket *)(((char *)packet) + packet->size);
           }
         } else if (res == -1) {
-          PRINTF("Error on recv socket return 0\n");
-          PRINTF("error %s\n", strerror(errno));
+          ARTS_INFO("Error on recv socket return 0");
+          ARTS_INFO("error %s", strerror(errno));
           artsShutdown();
           return;
         } else if (res == 0) {
-          PRINTF("Hmm socket close?\n");
+          ARTS_INFO("Hmm socket close?");
           artsShutdown();
           return;
         }

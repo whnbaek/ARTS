@@ -47,9 +47,9 @@ void printMatrix(unsigned int rowSize, double * mat)
     {
         for(unsigned int j=0; j<rowSize; j++)
         {
-            printf("%5.2f ", mat[i*rowSize + j]);
+            PRINTF("%5.2f ", mat[i*rowSize + j]);
         }
-        printf("\n");
+        PRINTF("\n");
     }
 }
 

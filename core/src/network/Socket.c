@@ -41,16 +41,16 @@
 #include "arpa/inet.h"
 #include "arts/arts.h"
 #include "arts/network/Connection.h"
+#include "arts/runtime/Globals.h"
+#include "arts/system/ArtsPrint.h"
 #include "netinet/tcp.h"
 #include "string.h"
 #include <fcntl.h>
-#define DPRINTF(...)
 
 void artsPrintSocketAddr(struct sockaddr_in *sock) {
-  // char crap[255];
   char *addr = inet_ntoa(sock->sin_addr);
   if (addr != NULL)
-    DPRINTF("socket addr %s\n", addr);
+    ARTS_DEBUG("socket addr %s", addr);
 }
 
 unsigned int artsGetNewSocket() {

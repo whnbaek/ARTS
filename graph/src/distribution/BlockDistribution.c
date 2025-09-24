@@ -40,6 +40,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <string.h>
+#include "arts/system/ArtsPrint.h"
 
 void internalInitBlockDistribution(arts_block_dist_t *_dist, graph_sz_t _n,
                                    graph_sz_t _m, unsigned int numBlocks) {
@@ -100,7 +101,7 @@ arts_block_dist_t *initBlockDistributionWithCmdLineArgs(int argc, char **argv) {
     internalInitBlockDistribution(dist, n, m, numBlocks);
     return dist;
   } else
-    PRINTF("Must set --num-vertices and --num-edges\n");
+    ARTS_INFO("Must set --num-vertices and --num-edges");
   return NULL;
 }
 

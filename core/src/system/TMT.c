@@ -74,8 +74,6 @@
 #include "arts/utils/Atomics.h"
 #include "arts/utils/Deque.h"
 
-#define DPRINTF(...)
-// #define DPRINTF( ... ) PRINTF( __VA_ARGS__ )
 #define ONLY_ONE_THREAD
 // while(!artsTestStateOneLeft(localPool->alias_running) &&
 // artsThreadInfo.alive)
@@ -101,7 +99,7 @@ static inline artsTicket GenTicket() {
   ticket.fields.unit = artsThreadInfo.groupId;
   ticket.fields.thread = aliasId;
   ticket.fields.valid = 1;
-  DPRINTF("r: %u u: %u t: %u v: %u\n", (unsigned int)ticket.fields.rank,
+  ARTS_DEBUG("r: %u u: %u t: %u v: %u", (unsigned int)ticket.fields.rank,
           (unsigned int)ticket.fields.unit, (unsigned int)ticket.fields.thread,
           (unsigned int)ticket.fields.valid);
   return ticket;
@@ -139,7 +137,7 @@ static inline void artsPutToWork(unsigned int rank, internalMsi_t *ptr,
 
 #ifdef PT_CONTEXTS
     if (sem_post(&ptr->sem[thread]) == -1) { // Wake avail thread up
-      PRINTF("FAILED SEMI POST %u %u\n", artsThreadInfo.groupId, aliasId);
+      ARTS_INFO("FAILED SEMI POST %u %u", artsThreadInfo.groupId, aliasId);
       //            exit(EXIT_FAILURE);
     }
 #endif
@@ -155,7 +153,7 @@ static inline void artsPutToSleep(unsigned int rank, internalMsi_t *ptr,
 
 #ifdef PT_CONTEXTS
     if (sem_wait(&ptr->sem[thread]) == -1) {
-      PRINTF("FAILED SEMI WAIT %u %u\n", artsThreadInfo.groupId, aliasId);
+      ARTS_INFO("FAILED SEMI WAIT %u %u", artsThreadInfo.groupId, aliasId);
       //            exit(EXIT_FAILURE);
     }
 #endif
@@ -171,14 +169,14 @@ static void *artsAliasThreadLoop(void *arg) {
 
   unsigned int unitId = artsThreadInfo.groupId;
   unsigned int numAT = artsNodeInfo.tMT;
-  DPRINTF("Alias: %u\n", aliasId);
+  ARTS_DEBUG("Alias: %u", aliasId);
 
   localPool = &_arts_tMT_msi[artsThreadInfo.groupId];
   localInternal = tArgs->localInternal;
   localInternal->alive[(aliasId % numAT)] = &artsThreadInfo.alive;
   localInternal->initShutdown[(aliasId % numAT)] = &tmtShutdownFlag;
   if (artsNodeInfo.pinThreads) {
-    DPRINTF("PINNING to %u:%u\n", artsThreadInfo.groupId, aliasId);
+    ARTS_DEBUG("PINNING to %u:%u", artsThreadInfo.groupId, aliasId);
     artsPthreadAffinity(artsThreadInfo.coreId, true);
     //        artsAbstractMachineModelPinThread(artsThreadInfo.coreId);
   }
@@ -187,7 +185,7 @@ static void *artsAliasThreadLoop(void *arg) {
   artsAccessorState(&localInternal->alias_avail, aliasId % numAT, true);
 
   if (sem_post(tArgs->startUpSem) == -1) { // finished  mask copy
-    PRINTF("FAILED SEMI INIT POST %u %u\n", artsThreadInfo.groupId, aliasId);
+    ARTS_INFO("FAILED SEMI INIT POST %u %u", artsThreadInfo.groupId, aliasId);
     //        exit(EXIT_FAILURE);
   }
 
@@ -215,7 +213,7 @@ static inline void artsCreateContexts(struct artsRuntimePrivate *semiPrivate,
   unsigned int numAT = artsNodeInfo.tMT;
   for (int i = 0; i < numAT; ++i) {
     if (sem_init(&ptr->sem[i], 0, 0) == -1) {
-      PRINTF("FAILED SEMI INIT %u %u\n", artsThreadInfo.groupId, i);
+      ARTS_INFO("FAILED SEMI INIT %u %u", artsThreadInfo.groupId, i);
       //            exit(EXIT_FAILURE);
     }
   }
@@ -232,18 +230,18 @@ static inline void artsCreateContexts(struct artsRuntimePrivate *semiPrivate,
 
   for (int i = 0; i < end; ++i) {
     tmask.aliasId = i + offset;
-    DPRINTF("Creating %u : %u of %u\n", tmask.aliasId, i, end);
+    ARTS_DEBUG("Creating %u : %u of %u", tmask.aliasId, i, end);
     if (pthread_create(&ptr->aliasThreads[i], &attr, &artsAliasThreadLoop,
                        &tmask)) {
-      PRINTF("FAILED ALIAS THREAD CREATION %u %u\n", artsThreadInfo.groupId,
+      ARTS_INFO("FAILED ALIAS THREAD CREATION %u %u", artsThreadInfo.groupId,
              i + offset);
       //            exit(EXIT_FAILURE);
     }
-    DPRINTF("Master %u: Waiting in thread creation %d\n",
+    ARTS_DEBUG("Master %u: Waiting in thread creation %d",
             artsThreadInfo.groupId, i + offset);
     if (sem_wait(&localInternal->sem[aliasId % numAT]) ==
         -1) { // wait to finish mask copy
-      PRINTF("FAILED SEMI INIT WAIT %u %u\n", artsThreadInfo.groupId,
+      ARTS_INFO("FAILED SEMI INIT WAIT %u %u", artsThreadInfo.groupId,
              i + offset);
       //            exit(EXIT_FAILURE);
     }
@@ -256,13 +254,13 @@ static inline void artsDestroyContexts(internalMsi_t *ptr, bool head) {
   unsigned int numAT = artsNodeInfo.tMT;
   unsigned int end = (head) ? numAT - 1 : numAT;
 
-  DPRINTF("ALIAS JOIN: %u\n", artsThreadInfo.groupId);
+  ARTS_DEBUG("ALIAS JOIN: %u", artsThreadInfo.groupId);
   for (unsigned int i = 0; i < end; i++) {
-    DPRINTF("Joining %u %u\n", i, head);
+    ARTS_DEBUG("Joining %u %u", i, head);
     pthread_join(ptr->aliasThreads[i], NULL);
   }
 
-  DPRINTF("SEM DESTROY: %u\n", artsThreadInfo.groupId);
+  ARTS_DEBUG("SEM DESTROY: %u", artsThreadInfo.groupId);
   for (unsigned int i = 0; i < numAT; i++)
     sem_destroy(&ptr->sem[i]);
 #endif
@@ -273,7 +271,7 @@ static inline void artsDestroyContexts(internalMsi_t *ptr, bool head) {
 void artsTMTNodeInit(unsigned int numThreads) {
   if (artsNodeInfo.tMT > 64) {
     PRINTF(
-        "Temporal multi-threading can't run more than 64 threads per core\n");
+        "Temporal multi-threading can't run more than 64 threads per core");
     artsNodeInfo.tMT = 64;
   }
 
@@ -344,7 +342,7 @@ void artsTMTRuntimePrivateInit(struct threadMask *unit,
 //    off our local spin flag, and the thread will go into rt cleanup mode.
 bool artsTMTRuntimeStop() {
   if (artsNodeInfo.tMT) {
-    DPRINTF("SETTING STOP FLAG: %u %u\n", artsThreadInfo.groupId, aliasId);
+    ARTS_DEBUG("SETTING STOP FLAG: %u %u", artsThreadInfo.groupId, aliasId);
     for (unsigned int j = 0; j < artsNodeInfo.workerThreadCount; j++) {
       for (internalMsi_t *ptr = _arts_tMT_msi[j].head; ptr != NULL;
            ptr = ptr->next) {
@@ -366,7 +364,7 @@ bool artsTMTCheckShutdown() {
       artsPutToSleep(artsGlobalRankId, localInternal,
                      aliasId % artsNodeInfo.tMT, true);
     } else {
-      DPRINTF("THE STOP %u %u\n", artsThreadInfo.groupId, aliasId);
+      ARTS_DEBUG("THE STOP %u %u", artsThreadInfo.groupId, aliasId);
       for (internalMsi_t *ptr = localPool->head; ptr != NULL; ptr = ptr->next) {
         for (unsigned int i = 0; i < artsNodeInfo.tMT; i++) {
           if (ptr->alive[i])
@@ -390,7 +388,7 @@ bool artsTMTCheckShutdown() {
 }
 
 void artsTMTRuntimePrivateCleanup() {
-  DPRINTF("TMT CLEANUP\n");
+  ARTS_DEBUG("TMT CLEANUP");
   if (artsNodeInfo.tMT) {
     bool head = true;
     internalMsi_t *trail = NULL;
@@ -420,7 +418,7 @@ void artsNextContext() {
       if (!cand) {
         ptr = (localInternal->next) ? localInternal->next : localPool->head;
       }
-      DPRINTF("%u link NEXT: %u total: %u %p %u next: %p head: %p\n",
+      ARTS_DEBUG("%u link NEXT: %u total: %u %p %u next: %p head: %p",
               artsThreadInfo.groupId, aliasId, localPool->total, ptr, cand,
               localInternal->next, localPool->head);
       artsPutToWork(artsGlobalRankId, ptr, cand, true); // available so flip
@@ -491,7 +489,7 @@ void artsContextSwitchInternal() {
 }
 
 bool artsContextSwitch(unsigned int waitCount) {
-  DPRINTF("CONTEXT SWITCH\n");
+  ARTS_DEBUG("CONTEXT SWITCH");
   if (artsNodeInfo.tMT && artsThreadInfo.alive) {
     bool firstFlag = true;
     if (waitCount)
@@ -518,7 +516,7 @@ void artsOpenContextSwitch() {
 }
 
 bool artsSignalContext(artsTicket_t waitTicket) {
-  DPRINTF("SIGNAL CONTEXT %u\n", artsNodeInfo.tMT);
+  ARTS_DEBUG("SIGNAL CONTEXT %u", artsNodeInfo.tMT);
   artsTicket ticket = (artsTicket)waitTicket;
   unsigned int rank = (unsigned int)ticket.fields.rank;
   unsigned int unit = (unsigned int)ticket.fields.unit;
@@ -555,7 +553,7 @@ artsTicket_t artsGetContextTicket() {
   ticket.bits = 0;
   if (artsNodeInfo.tMT)
     ticket = GenTicket();
-  DPRINTF("%u r: %u u: %u t: %u v: %u\n", artsNodeInfo.tMT,
+  ARTS_DEBUG("%u r: %u u: %u t: %u v: %u", artsNodeInfo.tMT,
           (unsigned int)ticket.fields.rank, (unsigned int)ticket.fields.unit,
           (unsigned int)ticket.fields.thread,
           (unsigned int)ticket.fields.valid);

@@ -218,7 +218,7 @@ __global__ void HPCC_starts(int64_cu_t N, uint64_cu_t numUpdates, uint64_cu_t nu
 __global__ void updateEdt(uint32_t paramc, uint64_t * paramv, uint32_t depc, artsEdtDep_t depv[])
 {
     // uint64_t gpuId = getGpuIndex();
-    // printf("Hello from %lu\n", gpuId);
+    // PRINTF("Hello from %lu\n", gpuId);
     uint64_cu_t tileSize = paramv[0];
     uint64_cu_t numTiles = paramv[1];
     uint64_cu_t tableSize = paramv[2];
@@ -260,9 +260,9 @@ void randomEdt(uint32_t paramc, uint64_t * paramv, uint32_t depc, artsEdtDep_t d
 
     if(numRemUpdates)
     {
-        DPRINTF("Get Random: %lu step: %lu index: %lu startIndex: %lu\n", numRandom, step, index, startIndex);
-        DPRINTF("TableSize: %lu rArray: %lu %p numTiles: %lu\n", tableSize, depv[0].guid, depv[0].ptr, numTiles);
-        DPRINTF("rArray pointer: %p\n", rArray);
+        PRINTF("Get Random: %lu step: %lu index: %lu startIndex: %lu\n", numRandom, step, index, startIndex);
+        PRINTF("TableSize: %lu rArray: %lu %p numTiles: %lu\n", tableSize, depv[0].guid, depv[0].ptr, numTiles);
+        PRINTF("rArray pointer: %p\n", rArray);
 
         //Call random function
         dim3 block(MAXTHREADS, 1, 1);
@@ -297,7 +297,7 @@ void randomEdt(uint32_t paramc, uint64_t * paramv, uint32_t depc, artsEdtDep_t d
                 updateArgs[4] = i;
                 dim3 block(MAXTHREADS, 1, 1);
                 dim3 grid(MAXTHREADBLOCKSPERSM * NUMBEROFSM, 1, 1);
-                DPRINTF("Launching for i: %lu count: %lu tileGuid: %lu\n", i, count[i], artsGetGuid(tileGuids, i));
+                PRINTF("Launching for i: %lu count: %lu tileGuid: %lu\n", i, count[i], artsGetGuid(tileGuids, i));
                 artsGuid_t updateGuid = artsEdtCreateGpu(updateEdt, artsGetCurrentNode(), 5, updateArgs, 2, grid, block, nextRandomGuid, i+1, NULL_GUID); 
                 artsGpuSignalEdtMemset(updateGuid, 0, artsGetGuid(tileGuids, i));
                 // artsSignalEdt(updateGuid, 0, artsGetGuid(tileGuids, i));
@@ -386,7 +386,7 @@ void initPerNode(unsigned int nodeId, int argc, char** argv)
     for(unsigned int i=0; i<numTiles; i++)
     {
         tile[i] = (uint64_t*) artsDbCreateWithGuid(artsGetGuid(tileGuids, i), (tileSize+1) * sizeof(uint64_t));
-        DPRINTF("TileGuid[%u]: %lu -> %p\n", i, artsGetGuid(tileGuids, i), tile[i]);
+        PRINTF("TileGuid[%u]: %lu -> %p\n", i, artsGetGuid(tileGuids, i), tile[i]);
         for(unsigned int j=0; j<tileSize; j++)
             tile[i][j] = counter++;
         tile[i][tileSize] = 0;
@@ -399,7 +399,7 @@ void initPerNode(unsigned int nodeId, int argc, char** argv)
     for(unsigned int i=0; i<numGpus; i++)
     {
         uint64_t * updateFrontier = (uint64_t*) artsDbCreateWithGuid(artsGetGuid(updateFrontierGuids, i), elemsPerFrontier*sizeof(uint64_t));
-        DPRINTF("updateFrontier[%u]: %lu %p\n", i, artsGetGuid(updateFrontierGuids, i), updateFrontier);
+        PRINTF("updateFrontier[%u]: %lu %p\n", i, artsGetGuid(updateFrontierGuids, i), updateFrontier);
         for(unsigned int j=0; j<elemsPerFrontier; j++)
             updateFrontier[j] = 0;
     }

@@ -58,12 +58,12 @@ void artsTurnOnCoreDumps() {
   limit.rlim_max = RLIM_INFINITY;
   pid_t pid = getpid();
   if (setrlimit(RLIMIT_CORE, &limit) != 0)
-    printf("Failed to force core dumps\n");
+    printf("Failed to force core dumps");
 }
 
 #else
 
-void artsTurnOnCoreDumps() { printf("Core dumps not supported on OS X.\n"); }
+void artsTurnOnCoreDumps() { printf("Core dumps not supported on OS X."); }
 
 #endif
 

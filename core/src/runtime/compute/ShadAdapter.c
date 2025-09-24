@@ -77,45 +77,6 @@ artsGuid_t artsActiveMessageShad(artsEdt_t funcPtr, unsigned int route,
   artsGuid_t guid = NULL_GUID;
   bool useEpoch = (epochGuid != NULL_GUID);
 
-  //    if(route == artsGlobalRankId && artsInspecting())
-  //    {
-  //        uint64_t edts = artsGetPerformanceMetricTotal(artsEdtThroughput,
-  //        artsNode); uint64_t queued =
-  //        artsGetPerformanceMetricTotal(artsEdtQueue, artsNode); uint64_t
-  //        totalQueued = (queued > edts) ? queued - edts : 0; double queueRate
-  //        = artsMetricTest(artsEdtThroughput, artsNode, totalQueued); double
-  //        doneRate = artsMetricTest(artsEdtThroughput, artsNode, 1);
-  //
-  //
-  ////        PRINTF("doneRate: %lf queueRate: %lf edts: %lu queued: %lu\n",
-  /// doneRate, queueRate, edts, queued); /        if(queueRate != 0 && doneRate
-  ///!= 0)
-  //        {
-  //            if( artsNodeInfo.workerThreadCount==1 ||
-  //                ( !edts && artsNodeInfo.workerThreadCount * 2 > queued) ||
-  //                ( totalQueued && (queueRate > doneRate) )
-  //              )
-  //            {
-  ////                PRINTF("%lf * 1.5 = %lf < %lf Queued: %lu\n", doneRate,
-  /// doneRate*1.5, queueRate, totalQueued);
-  //                artsEdtDep_t dep;
-  //                dep.ptr = data;
-  //                dep.mode = DB_MODE_PTR;
-  //                dep.guid = NULL_GUID;
-  //
-  //                ARTSCOUNTERTIMERSTART(edtCounter);
-  //
-  //                artsGuid_t result = funcPtr(paramc, paramv, 1, &dep);
-  //
-  //                ARTSCOUNTERTIMERENDINCREMENT(edtCounter);
-  //                artsUpdatePerformanceMetric(artsEdtThroughput, artsThread,
-  //                1, false);
-  //
-  //                return NULL_GUID;
-  //            }
-  //        }
-  //    }
-
   if (size) {
     unsigned int depSpace = sizeof(artsEdtDep_t);
     unsigned int edtSpace =
@@ -124,7 +85,6 @@ artsGuid_t artsActiveMessageShad(artsEdt_t funcPtr, unsigned int route,
                           NULL_GUID, funcPtr, paramc, paramv, 1, useEpoch,
                           epochGuid, true);
 
-    //        PRINTF("MEMCPY: %u\n", size);
     void *ptr = artsMalloc(size);
     memcpy(ptr, data, size);
     artsSignalEdtPtr(guid, 0, ptr, size);
@@ -177,9 +137,9 @@ void artsDecLockShad() { artsThreadInfo.shadLock--; }
 
 void artsCheckLockShad() {
   if (artsThreadInfo.shadLock) {
-    PRINTF("ARTS: Cannot perform synchronous call under lock Worker: %u "
-           "ShadLock: %u\n",
-           artsThreadInfo.groupId, artsThreadInfo.shadLock);
+    ARTS_INFO("ARTS: Cannot perform synchronous call under lock Worker: %u "
+              "ShadLock: %u",
+              artsThreadInfo.groupId, artsThreadInfo.shadLock);
     artsDebugGenerateSegFault();
   }
 }
@@ -201,7 +161,7 @@ artsGuid_t artsAllocateLocalBufferShad(void **buffer, uint32_t *sizeToWrite,
   if (epochGuid) {
     incrementActiveEpoch(epochGuid);
   } else
-    PRINTF("No EPOCH!!!\n");
+    ARTS_INFO("No EPOCH!!!");
   globalShutdownGuidIncActive();
 
   artsBuffer_t *stub = artsMalloc(sizeof(artsBuffer_t));
@@ -225,7 +185,6 @@ artsShadLock_t *artsShadCreateLock() {
 void artsShadLock(artsShadLock_t *lock) {
   unsigned int res = artsAtomicFetchAdd(&lock->size, 1);
   if (res) {
-    //        PRINTF("Lock %p -> %lu\n", lock->queue, artsGetContextTicket());
     enqueue(artsGetContextTicket(), lock->queue);
     artsContextSwitch(1);
   }
@@ -236,8 +195,6 @@ void artsShadUnlock(artsShadLock_t *lock) {
   if (res) {
     while (1) {
       artsTicket_t ticket = dequeue(lock->queue);
-      //            PRINTF("RES: %u from: %u Unock %p -> %lu\n", res,
-      //            artsGetCurrentWorker(), lock->queue, ticket);
       if (ticket) {
         artsSignalContext(ticket);
         return;
@@ -255,19 +212,13 @@ void artsShadUnlock(artsShadLock_t *lock) {
 bool artsShadAliasTryLock(volatile uint64_t *lock) {
   uint64_t dirtyRead = *lock;
   uint64_t owner = ALIASGETOWNER(dirtyRead);
-  // PRINTF("Owner: %lu Counter: %lu Current: %u\n", ALIASGETOWNER(dirtyRead),
-  // ALIASGETCOUNT(dirtyRead), artsThreadInfo.groupId);
   while (!owner || owner == artsThreadInfo.groupId + 1) {
     uint64_t newValue = (!owner) ? ALIASEMPTY : dirtyRead + 1;
-    // PRINTF("newValue: %lu\n", newValue);
     uint64_t res = artsAtomicCswapU64(lock, dirtyRead, newValue);
     if (res == dirtyRead)
       return true;
     dirtyRead = res;
     owner = ALIASGETOWNER(dirtyRead);
-    // PRINTF("Loop Owner: %lu Counter: %lu Current: %u\n",
-    // ALIASGETOWNER(dirtyRead), ALIASGETCOUNT(dirtyRead),
-    // artsThreadInfo.groupId);
   }
   return false;
 }
@@ -278,7 +229,7 @@ void artsShadAliasUnlock(volatile uint64_t *lock) {
     uint64_t newValue = (ALIASGETCOUNT(dirtyRead) == 1) ? 0 : dirtyRead - 1;
     uint64_t res = artsAtomicCswapU64(lock, dirtyRead, newValue);
     if (res == dirtyRead) {
-      // PRINTF("RES: %lu\n", res);
+      // ARTS_INFO("RES: %lu", res);
       return;
     }
     dirtyRead = res;
@@ -321,7 +272,7 @@ bool artsShadTMTLock2(volatile uint64_t *lock) {
         artsAtomicAddU64(lock, 1); // Inc the counter that we have created
                                    // thread
         artsCreateLiteContexts(lock);
-        PRINTF("STUPID CREATE!!!\n");
+        ARTS_INFO("STUPID CREATE!!!");
         counter = 0;
       }
       counter++;
@@ -332,7 +283,7 @@ bool artsShadTMTLock2(volatile uint64_t *lock) {
 }
 
 void artsShadTMTUnlock(volatile uint64_t *lock) {
-  // PRINTF("Unlock: %p %u:%u\n", lock, artsGetCurrentWorker(),
+  // ARTS_INFO("Unlock: %p %u:%u", lock, artsGetCurrentWorker(),
   // artsTMTLiteGetAlias());
   artsTMTLiteUnlock(lock);
 }
@@ -354,6 +305,6 @@ void artsShadTMTLock(volatile uint64_t *lock) {
     }
     artsResumeLiteContext();
   }
-  // PRINTF("Lock: %p %u:%u\n", lock, artsGetCurrentWorker(),
+  // ARTS_INFO("Lock: %p %u:%u", lock, artsGetCurrentWorker(),
   // artsTMTLiteGetAlias());
 }

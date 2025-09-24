@@ -67,7 +67,7 @@ void writeBinsToFile(unsigned int index)
         writeBinsToFile(index+1);
 
     char filename[1024];
-    sprintf(filename,"bins_%u_%u.ct", artsGetCurrentNode(), index);          
+    sPRINTF(filename,"bins_%u_%u.ct", artsGetCurrentNode(), index);          
     if(artsLengthArrayList(list[index]))
     {    
         FILE * fp = fopen(filename,"w");
@@ -79,7 +79,7 @@ void writeBinsToFile(unsigned int index)
             while(artsArrayListHasNext(iter))
             {
                 bin = artsArrayListNext(iter);
-                fprintf(fp, "%u\n", *bin);
+                fPRINTF(fp, "%u\n", *bin);
 
             }
             artsDeleteArrayListIterator(iter);

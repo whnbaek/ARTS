@@ -39,6 +39,7 @@
 
 #include "arts/introspection/Counter.h"
 #include "arts/runtime/Globals.h"
+#include "arts/system/ArtsPrint.h"
 #include "arts/utils/ArrayList.h"
 #include "arts/utils/Atomics.h"
 #include <sys/stat.h>
@@ -67,7 +68,6 @@ void artsInitCounterList(unsigned int threadId, unsigned int nodeId,
 
 void artsStartCounters(unsigned int startPoint) {
   if (counterStartPoint == startPoint) {
-    //        PRINTF("TURNING COUNTERS ON %u\n", startPoint);
     uint64_t temp = COUNTERTIMESTAMP;
     if (!artsAtomicCswapU64(&countersOn, 0, temp)) {
       printCounters = 1;
@@ -81,8 +81,8 @@ unsigned int artsCountersOn() { return countersOn; }
 void artsEndCounters() {
   uint64_t temp = countersOn;
   countersOn = 0;
-  PRINTF("COUNT TIME: %lu countersOn: %lu\n", COUNTERTIMESTAMP - temp,
-         countersOn);
+  ARTS_INFO("COUNT TIME: %lu countersOn: %lu", COUNTERTIMESTAMP - temp,
+            countersOn);
 }
 
 artsCounter *artsCreateCounter(unsigned int threadId, unsigned int nodeId,
@@ -211,7 +211,7 @@ uint64_t artsCounterGetEndTime(artsCounter *counter) {
 }
 
 void artsCounterPrint(artsCounter *counter, FILE *stream) {
-  fprintf(stream, "%s %u %u %" PRIu64 " %" PRIu64 "\n", counter->name,
+  fprintf(stream, "%s %u %u %" PRIu64 " %" PRIu64 "", counter->name,
           counter->nodeId, counter->threadId, counter->count,
           counter->totalTime);
 }
@@ -245,6 +245,6 @@ void artsWriteCountersToFile(unsigned int threadId, unsigned int nodeId) {
       }
       //        artsDeleteArrayList(artsThreadInfo.counterList);
     } else
-      printf("Failed to open %s\n", filename);
+      printf("Failed to open %s", filename);
   }
 }

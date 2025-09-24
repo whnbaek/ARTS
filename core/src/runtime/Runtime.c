@@ -63,7 +63,6 @@
 
 /* */
 
-#define DPRINTF(...) PRINTF(__VA_ARGS__)
 #define PACKET_SIZE 4096
 #define NETWORK_BACKOFF_INCREMENT 0
 
@@ -101,10 +100,10 @@ scheduler_t schedulerLoop[] = {artsDefaultSchedulerLoop,
 
 void artsMainEdt(uint32_t paramc, uint64_t *paramv, uint32_t depc,
                  artsEdtDep_t depv[]) {
-  DPRINTF("artsMainEdt called\n");
+  ARTS_DEBUG("artsMainEdt called");
   if (artsMain)
     artsMain(mainArgc, mainArgv);
-  DPRINTF("artsMainEdt finished\n");
+  ARTS_DEBUG("artsMainEdt finished");
 }
 
 void artsRuntimeNodeInit(unsigned int workerThreads,
@@ -270,11 +269,11 @@ void artsRuntimePrivateInit(struct threadMask *unit,
       unsigned int start;
       if (unit->groupPos < rem) {
         start = unit->groupPos * (size + 1);
-        // PRINTF("%d %d %d %d\n", start, size, unit->groupPos, rem);
+        // ARTS_INFO("%d %d %d %d", start, size, unit->groupPos, rem);
         artsRemotSetThreadInboundQueues(start, start + size + 1);
       } else {
         start = rem * (size + 1) + (unit->groupPos - rem) * size;
-        // PRINTF("%d %d %d %d\n", start, size, unit->groupPos, rem);
+        // ARTS_INFO("%d %d %d %d", start, size, unit->groupPos, rem);
         artsRemotSetThreadInboundQueues(start, start + size);
       }
     }
@@ -306,7 +305,7 @@ void artsRuntimePrivateInit(struct threadMask *unit,
   if (artsThreadInfo.worker) {
     if (artsNodeInfo.tMT && artsThreadInfo.worker) // @awmm
     {
-      DPRINTF("tMT: PthreadLayer: preparing aliasing for master thread %d\n",
+      ARTS_DEBUG("tMT: PthreadLayer: preparing aliasing for master thread %d",
               unit->id);
       artsTMTRuntimePrivateInit(unit, &artsThreadInfo);
     }
@@ -373,7 +372,7 @@ void artsRuntimeStop() {
 }
 
 void artsHandleRemoteStolenEdt(struct artsEdt *edt) {
-  DPRINTF("push stolen %d\n", artsThreadInfo.coreId);
+  ARTS_DEBUG("push stolen %d", artsThreadInfo.coreId);
   incrementQueueEpoch(edt->epochGuid);
   globalShutdownGuidIncQueue();
 #ifdef USE_GPU
@@ -391,7 +390,7 @@ void artsHandleRemoteStolenEdt(struct artsEdt *edt) {
 }
 
 void artsHandleReadyEdt(struct artsEdt *edt) {
-  PRINTF("EDT %u Ready\n", edt->currentEdt);
+  ARTS_INFO("EDT %u Ready", edt->currentEdt);
   acquireDbs(edt);
   if (artsAtomicSub(&edt->depcNeeded, 1U) == 0) {
     incrementQueueEpoch(edt->epochGuid);
@@ -426,7 +425,7 @@ void artsRunEdt(void *edtPacket) {
 
   artsSetThreadLocalEdtInfo(edt);
   ARTSCOUNTERTIMERSTART(edtCounter);
-  PRINTF("[artsRunEdt] Running EDT with GUID: %lu\n", edt->currentEdt);
+  ARTS_INFO("Running EDT with GUID: %lu", edt->currentEdt);
   func(paramc, paramv, depc, depv);
 
   ARTSCOUNTERTIMERENDINCREMENT(edtCounter);
@@ -439,7 +438,7 @@ void artsRunEdt(void *edtPacket) {
     artsSetBuffer(edt->outputBuffer, artsCalloc(sizeof(unsigned int)),
                   sizeof(unsigned int));
 
-  PRINTF("[artsRunEdt] EDT %u Finished\n", edt->currentEdt);
+  ARTS_INFO("EDT %u Finished", edt->currentEdt);
   releaseDbs(depc, depv, false);
   artsEdtDelete(edtPacket);
   // This is for debugging purposes

@@ -57,8 +57,6 @@
 #include "arts/system/Debug.h"
 #include "arts/utils/Deque.h"
 
-#define DPRINTF(...)
-// #define DPRINTF(...) PRINTF(__VA_ARGS__)
 
 __thread int artsSavedDeviceId = -1;
 __thread int artsCurrentDeviceId = -1;
@@ -111,7 +109,7 @@ void *artsCudaMalloc(unsigned int size) {
   void *ptr = NULL;
   CHECKCORRECT(cudaMalloc(&ptr, size));
   if (!ptr) {
-    PRINTF("artsCudaMalloc failed %lu\n",
+    ARTS_INFO("artsCudaMalloc failed %lu\n",
            artsGpus[artsCurrentDeviceId].availGlobalMem);
     artsDebugPrintStack();
     exit(1);
@@ -278,7 +276,7 @@ void artsRunGpu(void *edtPacket, artsGpu_t *artsGpu) {
   artsCudaSetDevice(artsGpu->device, true);
 
   if (artsNodeInfo.runGpuGcPreEdt) {
-    // PRINTF("Running Pre Edt GPU GC: %u\n", artsGpu->device);
+    // ARTS_INFO("Running Pre Edt GPU GC: %u\n", artsGpu->device);
     uint64_t freeMemSize = artsGpuCleanUpRouteTable(
         (unsigned int)-1, artsNodeInfo.deleteZerosGpuGc,
         (unsigned int)artsGpu->device);
@@ -311,7 +309,7 @@ void artsGpuHostWrapUp(void *edtPacket, artsGuid_t toSignal, uint32_t slot,
     incrementFinishedEpoch(edt->wrapperEdt.epochGuid);
   }
 
-  DPRINTF("TO SIGNAL: %lu -> %lu slot: %u\n", toSignal, dataGuid, slot);
+  ARTS_DEBUG("TO SIGNAL: %lu -> %lu slot: %u\n", toSignal, dataGuid, slot);
   // Signal next
   if (toSignal) {
     if (edt->passthrough)
@@ -372,7 +370,7 @@ bool artsGpuSchedulerLoop() {
     long unsigned int gpuId = jrand48(artsThreadInfo.drand_buf);
     gpuId = gpuId % artsNodeInfo.gpu;
     artsGpu = &artsGpus[gpuId];
-    DPRINTF("Running Idle GPU GC: %u\n", gpuId);
+    ARTS_DEBUG("Running Idle GPU GC: %u\n", gpuId);
     artsCudaSetDevice(artsGpu->device, true);
 
     uint64_t freeMemSize = artsGpuCleanUpRouteTable(
@@ -425,7 +423,7 @@ bool artsGpuSchedulerBackoffLoop() {
       long unsigned int gpuId = jrand48(artsThreadInfo.drand_buf);
       gpuId = gpuId % artsNodeInfo.gpu;
       artsGpu = &artsGpus[gpuId];
-      DPRINTF("Running Idle GPU GC: %u\n", gpuId);
+      ARTS_DEBUG("Running Idle GPU GC: %u\n", gpuId);
       artsCudaSetDevice(artsGpu->device, true);
 
       uint64_t freeMemSize = artsGpuCleanUpRouteTable(
@@ -440,7 +438,7 @@ bool artsGpuSchedulerBackoffLoop() {
         backoff *= 32;
       if (!backoff)
         backoff = 1;
-      DPRINTF("Backoff: %u\n", backoff);
+      ARTS_DEBUG("Backoff: %u\n", backoff);
     }
     gcCounter++;
   }
@@ -482,7 +480,7 @@ bool artsGpuSchedulerDemandLoop() {
       runGCFlag = 0;
 
       artsGpu = &artsGpus[gpuId];
-      DPRINTF("Running Idle GPU GC: %u\n", gpuId);
+      ARTS_DEBUG("Running Idle GPU GC: %u\n", gpuId);
       artsCudaSetDevice(artsGpu->device, true);
 
       uint64_t freeMemSize = artsGpuCleanUpRouteTable(
@@ -565,13 +563,13 @@ void internalLCSyncGPU(artsGuid_t acqGuid, struct artsDb *db) {
     struct artsDb *tempSpace = (struct artsDb *)artsMalloc(size);
 
     gpuGCWriteLock(); // Don't let the gc take our copies...
-    DPRINTF("FUNCTION: %u\n", artsNodeInfo.gpuLCSync);
+    ARTS_DEBUG("FUNCTION: %u\n", artsNodeInfo.gpuLCSync);
     unsigned int remMask = gpuLCReduce(
         acqGuid, db, lcSyncFunctionGpu[artsNodeInfo.gpuLCSync], &copyOnly);
-    DPRINTF("RemMask: %u\n", remMask);
+    ARTS_DEBUG("RemMask: %u\n", remMask);
     for (int i = 0; i < artsNodeInfo.gpu; i++) {
       if (remMask & (1 << i)) {
-        DPRINTF("Merging: %u\n", i);
+        ARTS_DEBUG("Merging: %u\n", i);
         unsigned int gpuVersion;
         unsigned int timeStamp;
         void *dataPtr = artsGpuRouteTableLookupDbRes(acqGuid, i, &gpuVersion,
@@ -602,7 +600,7 @@ void internalLCSyncGPU(artsGuid_t acqGuid, struct artsDb *db) {
           artsUpdatePerformanceMetric(artsGpuSync, artsThread, 1, false);
         }
       } else {
-        DPRINTF("NO DB COPY ON GPU %d\n", i);
+        ARTS_DEBUG("NO DB COPY ON GPU %d\n", i);
       }
     }
     gpuGCWriteUnlock();
@@ -636,12 +634,12 @@ void internalLCSyncCPU(artsGuid_t acqGuid, struct artsDb *db) {
     for (int i = 0; i < artsNodeInfo.gpu; i++) {
       unsigned int gpuVersion;
       unsigned int timeStamp;
-      DPRINTF("acqGuid: %lu type: %u i: %u\n", acqGuid,
+      ARTS_DEBUG("acqGuid: %lu type: %u i: %u\n", acqGuid,
               artsGuidGetType(acqGuid), i);
       void *dataPtr =
           artsGpuRouteTableLookupDb(acqGuid, i, &gpuVersion, &timeStamp);
       if (dataPtr) {
-        DPRINTF("i: %u %lu\n", i, acqGuid);
+        ARTS_DEBUG("i: %u %lu\n", i, acqGuid);
         artsGpuInvalidateOnRouteTable(acqGuid, i);
         // artsCudaSetDevice(i, false);
 
@@ -661,7 +659,7 @@ void internalLCSyncCPU(artsGuid_t acqGuid, struct artsDb *db) {
         dev.writeLock = NULL;
         lcSyncFunction[artsNodeInfo.gpuLCSync](&host, &dev);
       } else {
-        DPRINTF("NO DB COPY ON GPU %d\n", i);
+        ARTS_DEBUG("NO DB COPY ON GPU %d\n", i);
       }
     }
     gpuGCWriteUnlock();

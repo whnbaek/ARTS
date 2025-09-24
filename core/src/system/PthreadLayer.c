@@ -133,7 +133,7 @@ void artsPthreadAffinity(unsigned int cpuCoreId, bool verbose) {
   CPU_ZERO(&cpuset);
   CPU_SET(cpuCoreId, &cpuset);
   if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) && verbose)
-    PRINTF("Failed to set affinity %u\n", cpuCoreId);
+    ARTS_INFO("Failed to set affinity %u", cpuCoreId);
 #endif
 }
 

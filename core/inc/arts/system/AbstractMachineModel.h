@@ -44,6 +44,7 @@ extern "C" {
 #endif
 #include "arts/arts.h"
 #include "arts/system/Config.h"
+#include "arts/system/Debug.h"
 #include <assert.h>
 
 struct artsCoreInfo;

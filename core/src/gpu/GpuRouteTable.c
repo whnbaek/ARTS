@@ -42,13 +42,10 @@
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gpu/GpuStream.h"
 #include "arts/introspection/Counter.h"
+#include "arts/runtime/Globals.h"
 #include "arts/runtime/memory/DbList.h"
 #include "arts/system/Debug.h"
 #include "arts/utils/Atomics.h"
-#include "arts/runtime/Globals.h"
-
-#define DPRINTF(...)
-// #define DPRINTF(...) PRINTF(__VA_ARGS__)
 
 // Use to keep ordering for LC accesses
 volatile unsigned int gpuNodeOrder = 0;
@@ -57,7 +54,7 @@ volatile unsigned int gpuNodeOrder = 0;
 __thread uint64_t gpuItemSizeBypass = 0;
 
 void setGpuItem(artsRouteItem_t *item, void *data) {
-  DPRINTF("gpuItemSizeBypass: %lu\n", gpuItemSizeBypass);
+  ARTS_DEBUG("gpuItemSizeBypass: %lu", gpuItemSizeBypass);
   artsItemWrapper_t *wrapper = (artsItemWrapper_t *)item->data;
   wrapper->realData = data;
   wrapper->size = gpuItemSizeBypass;
@@ -190,7 +187,7 @@ void *artsGpuRouteTableLookupDbRes(artsGuid_t key, int gpuId,
         *touched = internalIncDbVersion(internalTouched);
     }
     ret = (void *)wrapper->realData;
-    DPRINTF("Wrapper: %p %p\n", wrapper, wrapper->realData);
+    ARTS_DEBUG("Wrapper: %p %p", wrapper, wrapper->realData);
   }
   return ret;
 }
@@ -232,26 +229,18 @@ void gpuGCReadLock() {
       break;
     artsAtomicSub(&gpuReader, 1U);
   }
-  // PRINTF("READ LOCK\n");
 }
 
-void gpuGCReadUnlock() {
-  // PRINTF("READ UNLOCK\n");
-  artsAtomicSub(&gpuReader, 1U);
-}
+void gpuGCReadUnlock() { artsAtomicSub(&gpuReader, 1U); }
 
 void gpuGCWriteLock() {
   while (artsAtomicCswap(&gpuWriter, 0U, 1U) != 0U)
     ;
   while (gpuReader)
     ;
-  // PRINTF("WRITE LOCK\n");
 }
 
-void gpuGCWriteUnlock() {
-  // PRINTF("WRITE UNLOCK\n");
-  artsAtomicSwap(&gpuWriter, 0U);
-}
+void gpuGCWriteUnlock() { artsAtomicSwap(&gpuWriter, 0U); }
 
 /*This takes three parameters to regulate what is deleted.  This will only clean
 up DBs!
