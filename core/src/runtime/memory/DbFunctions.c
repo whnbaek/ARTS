@@ -48,11 +48,11 @@
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/RT.h"
 #include "arts/runtime/Runtime.h"
-#include "arts/system/Debug.h"
 #include "arts/runtime/compute/EdtFunctions.h"
 #include "arts/runtime/memory/DbList.h"
 #include "arts/runtime/network/RemoteFunctions.h"
 #include "arts/runtime/sync/TerminationDetection.h"
+#include "arts/system/Debug.h"
 #include "arts/utils/Atomics.h"
 #include <assert.h>
 
@@ -190,8 +190,8 @@ void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
       ptr = (void *)((struct artsDb *)ptr + 1);
     }
   }
-  ARTS_INFO("Creating DB [Guid: %lu] [Mode: %s] [Ptr: %p]", guid,
-             getTypeName(mode), ptr);
+  ARTS_INFO("Creating DB [Guid: %lu] [Mode: %s] [Ptr: %p] [Route: %d]", guid,
+            getTypeName(mode), ptr, artsGuidGetRank(guid));
   ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
   return ptr;
 }
@@ -370,8 +370,7 @@ void artsDbAddDependence(artsGuid_t dbSrc, artsGuid_t edtDest,
 void acquireDbs(struct artsEdt *edt) {
   artsEdtDep_t *depv = artsGetDepv(edt);
   edt->depcNeeded = edt->depc + 1;
-  ARTS_INFO("Acquiring %u DBs for EDT [Guid: %lu]", edt->depc,
-             edt->currentEdt);
+  ARTS_INFO("Acquiring %u DBs for EDT [Guid: %lu]", edt->depc, edt->currentEdt);
   for (int i = 0; i < edt->depc; i++) {
     if (depv[i].guid && depv[i].ptr == NULL) {
       struct artsDb *dbFound = NULL;
@@ -423,7 +422,7 @@ void acquireDbs(struct artsEdt *edt) {
           else {
             // TODO: Create an out-of-order sync
             ARTS_DEBUG("%lu out of order request for LC_SYNC not supported yet",
-                        depv[i].guid);
+                       depv[i].guid);
             // artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
         }
@@ -504,13 +503,12 @@ void acquireDbs(struct artsEdt *edt) {
       if (dbFound)
         depv[i].ptr = dbFound + 1;
       ARTS_DEBUG(" - DB [Guid: %lu - Ptr: %p] acquired", depv[i].guid,
-                  depv[i].ptr);
+                 depv[i].ptr);
     } else {
       artsAtomicSub(&edt->depcNeeded, 1U);
     }
   }
-  ARTS_INFO("EDT [Guid: %lu] has finished acquiring DBs",
-             edt->currentEdt);
+  ARTS_INFO("EDT [Guid: %lu] has finished acquiring DBs", edt->currentEdt);
 }
 
 void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
