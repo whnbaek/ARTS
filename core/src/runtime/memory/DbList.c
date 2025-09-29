@@ -43,6 +43,7 @@
 #include "arts/runtime/Runtime.h"
 #include "arts/runtime/compute/EdtFunctions.h"
 #include "arts/runtime/network/RemoteFunctions.h"
+#include "arts/system/ArtsPrint.h"
 #include "arts/utils/Atomics.h"
 
 #define writeSet 0x80000000
@@ -467,7 +468,7 @@ void artsProgressFrontier(struct artsDb *db, unsigned int rank) {
   artsWriterLock(&dbList->reader, &dbList->writer);
   struct artsDbFrontier *tail = dbList->head;
   if (dbList->head) {
-    ARTS_INFO("HEAD: %p -> NEXT: %p", dbList->head, dbList->head->next);
+    ARTS_DEBUG("HEAD: %p -> NEXT: %p", dbList->head, dbList->head->next);
     dbList->head = (struct artsDbFrontier *)dbList->head->next;
     if (dbList->head) {
       if (rank == artsGlobalRankId)

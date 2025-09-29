@@ -104,9 +104,9 @@ void artsDbCreateInternal(artsGuid_t guid, void *addr, uint64_t size,
   dbRes->reader = 0;
   dbRes->writer = 0;
   dbRes->copyCount = 0;
-  if (mode != ARTS_DB_PIN) {
+  if (mode != ARTS_DB_PIN)
     dbRes->dbList = artsNewDbList();
-  }
+
   if (mode == ARTS_DB_LC) {
     void *shadowCopy = (void *)(((char *)addr) + packetSize);
     memcpy(shadowCopy, addr, sizeof(struct artsDb));
@@ -184,9 +184,8 @@ void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
     ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
     if (ptr) {
       artsDbCreateInternal(guid, ptr, size, dbSize, mode);
-      if (artsRouteTableAddItemRace(ptr, guid, artsGlobalRankId, false)) {
+      if (artsRouteTableAddItemRace(ptr, guid, artsGlobalRankId, false))
         artsRouteTableFireOO(guid, artsOutOfOrderHandler);
-      }
       ptr = (void *)((struct artsDb *)ptr + 1);
     }
   }
@@ -245,10 +244,8 @@ void *artsDbResizePtr(struct artsDb *dbRes, unsigned int size, bool copy) {
 void *artsDbResize(artsGuid_t guid, unsigned int size, bool copy) {
   struct artsDb *dbRes = artsRouteTableLookupItem(guid);
   void *ptr = artsDbResizePtr(dbRes, size, copy);
-  if (ptr) {
+  if (ptr)
     dbRes = ((struct artsDb *)ptr) - 1;
-    //        artsRouteTableUpdateItem(dbRes, guid, artsGlobalRankId);
-  }
   return ptr;
 }
 
@@ -262,8 +259,6 @@ void artsDbMove(artsGuid_t dbGuid, unsigned int rank) {
       if (dbRes)
         artsRemoteMemoryMove(rank, dbGuid, dbRes, dbRes->header.size,
                              ARTS_REMOTE_DB_MOVE_MSG, artsDbFree);
-      //                artsRemoteMemoryMove(rank, dbGuid, dbRes,
-      //                dbRes->header.size, ARTS_REMOTE_DB_MOVE_MSG, artsFree);
       else
         artsOutOfOrderDbMove(dbGuid, rank);
     }
@@ -290,9 +285,8 @@ bool artsDbRenameWithGuid(artsGuid_t newGuid, artsGuid_t oldGuid) {
       dbRes->guid = newGuid;
       // This is only being done by the owner...
       artsRouteTableHideItem(oldGuid);
-      if (artsRouteTableAddItemRace(dbRes, newGuid, artsGlobalRankId, false)) {
+      if (artsRouteTableAddItemRace(dbRes, newGuid, artsGlobalRankId, false))
         artsRouteTableFireOO(newGuid, artsOutOfOrderHandler);
-      }
       ret = true;
     }
   } else
@@ -309,9 +303,8 @@ artsGuid_t artsDbCopyToNewType(artsGuid_t oldGuid, artsType_t newType) {
     if (dbRes != NULL) {
       artsAtomicAdd(&dbRes->copyCount, 1);
       dbRes->guid = newGuid;
-      if (artsRouteTableAddItemRace(dbRes, newGuid, artsGlobalRankId, false)) {
+      if (artsRouteTableAddItemRace(dbRes, newGuid, artsGlobalRankId, false))
         artsRouteTableFireOO(newGuid, artsOutOfOrderHandler);
-      }
       ret = newGuid;
     }
   }
@@ -330,7 +323,6 @@ void artsDbDestroySafe(artsGuid_t guid, bool remote) {
     if (remote)
       artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
     artsDbFree(dbRes);
-    //        artsFree(dbRes);
     artsRouteTableRemoveItem(guid);
   } else if (remote)
     artsRemoteDbDestroy(guid, artsGlobalRankId, 0);
@@ -421,7 +413,7 @@ void acquireDbs(struct artsEdt *edt) {
           // The Db hasn't been created yet
           else {
             // TODO: Create an out-of-order sync
-            ARTS_DEBUG("%lu out of order request for LC_SYNC not supported yet",
+            ARTS_DEBUG("DB [Guid: %lu] out of order request for LC_SYNC not supported yet",
                        depv[i].guid);
             // artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
@@ -444,7 +436,7 @@ void acquireDbs(struct artsEdt *edt) {
           if (dbTemp) {
             if (artsAddDbDuplicate(dbTemp, artsGlobalRankId, edt, i,
                                    depv[i].mode)) {
-              ARTS_DEBUG("Adding duplicate %u", depv[i].guid);
+              ARTS_DEBUG("Adding duplicate DB [Guid: %lu]", depv[i].guid);
               // Owner rank and we have the valid copy
               if (validRank == artsGlobalRankId) {
                 dbFound = dbTemp;
@@ -465,12 +457,12 @@ void acquireDbs(struct artsEdt *edt) {
                                           depv[i].mode);
               }
             } else {
-              ARTS_DEBUG("Duplicate not added %lu", depv[i].guid);
+              ARTS_DEBUG("Duplicate not added DB [Guid: %lu]", depv[i].guid);
             }
           }
           // The Db hasn't been created yet
           else {
-            ARTS_DEBUG("%u out of order request slot %u", depv[i].guid, i);
+            ARTS_DEBUG("DB [Guid: %lu] out of order request slot %u", depv[i].guid, i);
             artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
         } else {
@@ -534,7 +526,7 @@ void prepDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
 
 void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
   for (int i = 0; i < depc; i++) {
-    ARTS_DEBUG("Releasing %u", depv[i].guid);
+    ARTS_DEBUG("Releasing DB [Guid: %lu]", depv[i].guid);
     unsigned int owner = artsGuidGetRank(depv[i].guid);
 #ifdef SMART_DB
     /// Smart DBs automatically decrement the latch count when the db is
@@ -561,7 +553,7 @@ void releaseDbs(unsigned int depc, artsEdtDep_t *depv, bool gpu) {
       artsReaderUnlock(&db->reader);
     } else {
       if (artsRouteTableReturnDb(depv[i].guid, depv[i].mode != ARTS_DB_PIN)) {
-        ARTS_DEBUG("FREED A COPY!");
+        ARTS_DEBUG("FREED A COPY - DB [Guid: %lu]", depv[i].guid);
       }
     }
   }
@@ -586,17 +578,17 @@ void internalGetFromDb(artsGuid_t edtGuid, artsGuid_t dbGuid, unsigned int slot,
       void *data = (void *)(((char *)(db + 1)) + offset);
       void *ptr = artsMalloc(size);
       memcpy(ptr, data, size);
-      ARTS_INFO("GETTING: %u From: %p", *(unsigned int *)ptr, data);
+      ARTS_INFO("Getting DB [Guid: %lu] From: %p", dbGuid, data);
       if (edtGuid != NULL_GUID)
         artsSignalEdtPtr(edtGuid, slot, ptr, size);
       artsUpdatePerformanceMetric(artsGetBW, artsThread, size, false);
     } else {
       assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
-      ARTS_INFO("GETTING OO: %u From: %p", 0, NULL);
+      ARTS_INFO("Getting OO-DB [Guid: %lu] From: %p", dbGuid, NULL);
       artsOutOfOrderGetFromDb(edtGuid, dbGuid, slot, offset, size);
     }
   } else {
-    ARTS_DEBUG("Sending to %u", rank);
+    ARTS_DEBUG("Sending DB [Guid: %lu] to Rank %u", dbGuid, rank);
     assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
     artsRemoteGetFromDb(edtGuid, dbGuid, slot, offset, size, rank);
   }
@@ -653,7 +645,7 @@ void artsPutInDbAt(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
                    unsigned int rank) {
   ARTSEDTCOUNTERTIMERSTART(putDbCounter);
   artsGuid_t epochGuid = artsGetCurrentEpochGuid();
-  ARTS_DEBUG("EPOCH %lu", epochGuid);
+  ARTS_DEBUG("Epoch [Guid: %lu]", epochGuid);
   incrementActiveEpoch(epochGuid);
   globalShutdownGuidIncActive();
   internalPutInDb(ptr, edtGuid, dbGuid, slot, offset, size, epochGuid, rank);
@@ -665,7 +657,7 @@ void artsPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
   ARTSEDTCOUNTERTIMERSTART(putDbCounter);
   unsigned int rank = artsGuidGetRank(dbGuid);
   artsGuid_t epochGuid = artsGetCurrentEpochGuid();
-  ARTS_DEBUG("EPOCH %lu", epochGuid);
+  ARTS_DEBUG("Epoch [Guid: %lu]", epochGuid);
   incrementActiveEpoch(epochGuid);
   globalShutdownGuidIncActive();
   internalPutInDb(ptr, edtGuid, dbGuid, slot, offset, size, epochGuid, rank);
