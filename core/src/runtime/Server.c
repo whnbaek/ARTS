@@ -87,11 +87,10 @@ void artsServerSetup(struct artsConfig *config) {
 void artsServerProcessPacket(struct artsRemotePacket *packet) {
   if (packet->messageType != ARTS_REMOTE_METRIC_UPDATE_MSG ||
       packet->messageType != ARTS_REMOTE_SHUTDOWN_MSG) {
-    artsUpdatePerformanceMetric(artsNetworkRecieveBW, artsThread, packet->size,
-                                false);
-    artsUpdatePerformanceMetric(artsFreeBW + packet->messageType, artsThread,
-                                packet->size, false);
-    artsUpdatePacketInfo(packet->size);
+    artsMetricsTriggerEvent(artsNetworkRecieveBW, artsThread, packet->size);
+    artsMetricsTriggerEvent(artsFreeBW + packet->messageType, artsThread,
+                            packet->size);
+    artsMetricsUpdatePacketInfo(packet->size);
   }
 #ifdef SEQUENCENUMBERS
   uint64_t expSeqNumber =
@@ -128,7 +127,7 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     struct artsRemotePersistentEventSatisfySlotPacket *pack =
         (struct artsRemotePersistentEventSatisfySlotPacket *)(packet);
 
-    artsPersistentEventSatisfy(pack->event, pack->slot, pack->lock);
+    artsPersistentEventSatisfy(pack->event, pack->action, pack->lock);
     break;
   }
 #ifdef SMART_DB
@@ -249,9 +248,9 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
     struct artsRemoteMetricUpdate *pack =
         (struct artsRemoteMetricUpdate *)(packet);
     ARTS_DEBUG("Metric update Recieved %u -> %d %ld", artsGlobalRankId,
-            pack->type, pack->toAdd);
-    artsHandleRemoteMetricUpdate(pack->type, artsSystem, pack->toAdd,
-                                 pack->sub);
+               pack->type, pack->toAdd);
+    artsMetricsHandleRemoteUpdate(pack->type, artsSystem, pack->toAdd,
+                                  pack->sub);
     break;
   }
   case ARTS_REMOTE_GET_FROM_DB_MSG: {
@@ -312,7 +311,7 @@ void artsServerProcessPacket(struct artsRemotePacket *packet) {
   }
   default: {
     ARTS_INFO("Unknown Packet %d %d %d", packet->messageType, packet->size,
-           packet->rank);
+              packet->rank);
     artsShutdown();
     artsRuntimeStop();
   }

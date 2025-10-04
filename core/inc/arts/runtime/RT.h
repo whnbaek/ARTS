@@ -50,20 +50,11 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
-/* boolean support in C */
-#ifdef __cplusplus
-#define TRUE true
-#define FALSE false
-#else
-#define true 1
-#define TRUE 1
-#define false 0
-#define FALSE 0
-typedef uint8_t bool;
-#endif /* __cplusplus */
 
-typedef intptr_t artsGuid_t; /**< GUID type */
+/// GUID type
+typedef intptr_t artsGuid_t;
 #define NULL_GUID ((artsGuid_t)0x0)
 
 /// Pointer type

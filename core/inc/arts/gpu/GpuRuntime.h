@@ -152,12 +152,13 @@ artsGuid_t artsEdtCreateGpuPTWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
 artsGuid_t artsEdtCreateGpuDirect(artsEdt_t funcPtr, unsigned int route,
                                   unsigned int gpu, uint32_t paramc,
                                   uint64_t *paramv, uint32_t depc, void *grid,
-                                  void *block, artsGuid_t endGuid, uint32_t slot,
-                                  artsGuid_t dataGuid, bool hasDepv);
+                                  void *block, artsGuid_t endGuid,
+                                  uint32_t slot, artsGuid_t dataGuid,
+                                  bool hasDepv);
 artsGuid_t artsEdtCreateGpuLibDirect(artsEdt_t funcPtr, unsigned int route,
                                      unsigned int gpu, uint32_t paramc,
-                                     uint64_t *paramv, uint32_t depc, void *grid,
-                                     void *block);
+                                     uint64_t *paramv, uint32_t depc,
+                                     void *grid, void *block);
 artsGuid_t artsEdtCreateGpuWithGuid(artsEdt_t funcPtr, artsGuid_t guid,
                                     uint32_t paramc, uint64_t *paramv,
                                     uint32_t depc, void *grid, void *block,
@@ -185,7 +186,7 @@ void artsPutInDbFromGpu(void *ptr, artsGuid_t dbGuid, unsigned int offset,
 void artsGpuHostWrapUp(void *edtPacket, artsGuid_t toSignal, uint32_t slot,
                        artsGuid_t dataGuid);
 void artsRunGpu(void *edtPacket, artsGpu_t *artsGpu);
-bool artsGpuSchedulerLoop();
+bool artsGpuSchedulerLoop(void);
 
 void artsLCSync(artsGuid_t edtGuid, uint32_t slot, artsGuid_t dataGuid);
 void artsGpuSignalEdtMemset(artsGuid_t edtGuid, uint32_t slot,

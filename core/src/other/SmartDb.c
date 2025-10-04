@@ -98,9 +98,12 @@ static float calculateAccessCost(const artsMemMetrics_t *metrics,
 // Create a new SmartDB with the given size and type
 artsDb_t *artsDbCreate(uint64_t size, artsType_t type,
                                  artsDbFlags_t flags) {
+  artsCounterTriggerTimerEvent(smartDbCreateCounter, true);
   artsDb_t *smartDb = (artsDb_t *)artsMalloc(sizeof(artsDb_t));
-  if (!smartDb)
+  if (!smartDb) {
+    artsCounterTriggerTimerEvent(smartDbCreateCounter, false);
     return NULL;
+  }
 
   // Initialize core components
   smartDb->size = size;
@@ -149,6 +152,7 @@ artsDb_t *artsDbCreate(uint64_t size, artsType_t type,
   smartDb->memRef = data;
   smartDb->memRefSize = size;
 
+  artsCounterTriggerTimerEvent(smartDbCreateCounter, false);
   return smartDb;
 }
 

@@ -3,3 +3,4 @@ build/
 # Dependencies
 deps/
 .cache/
+CMakeFiles/

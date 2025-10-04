@@ -617,7 +617,7 @@ struct artsConfig *artsConfigLoad() {
       config->killMode = strtol(foundVariable->value, &end, 10);
 
       if (config->killMode) {
-        ARTS_INFO_ONCE("Killmode set: Attempting to kill remote proccesses.");
+        ARTS_DEBUG_ONCE("Killmode set: Attempting to kill remote proccesses.");
       }
     } else {
       config->killMode = 0;
@@ -651,7 +651,7 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->threadCount = strtol(foundVariable->value, &end, 10);
   else {
-    ARTS_INFO_ONCE("Defaulting to 4 threads\n");
+    ARTS_DEBUG_ONCE("Defaulting to 4 threads\n");
     config->threadCount = 4;
   }
 
@@ -673,7 +673,7 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->ports = strtol(foundVariable->value, &end, 10);
   else if (strncmp(config->launcher, "local", 5) != 0) {
-    ARTS_INFO_ONCE("Defaulting to 1 connection per node\n");
+    ARTS_DEBUG_ONCE("Defaulting to 1 connection per node\n");
     config->ports = 1;
   }
 
@@ -681,7 +681,7 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->senderCount = strtol(foundVariable->value, &end, 10);
   else if (strncmp(config->launcher, "local", 5) != 0) {
-    ARTS_INFO_ONCE("Defaulting to 1 sender");
+    ARTS_DEBUG_ONCE("Defaulting to 1 sender");
     config->senderCount = 1;
   }
 
@@ -689,7 +689,7 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->recieverCount = strtol(foundVariable->value, &end, 10);
   else if (strncmp(config->launcher, "local", 5) != 0) {
-    ARTS_INFO_ONCE("Defaulting to 1 reciever");
+    ARTS_DEBUG_ONCE("Defaulting to 1 reciever");
     config->recieverCount = 1;
   }
 
@@ -697,7 +697,7 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->socketCount = strtol(foundVariable->value, &end, 10);
   else {
-    ARTS_INFO_ONCE("Defaulting to 1 sockets");
+    ARTS_DEBUG_ONCE("Defaulting to 1 sockets");
     config->socketCount = 1;
   }
 
@@ -710,7 +710,7 @@ struct artsConfig *artsConfigLoad() {
     else
       config->ibNames = false;
   } else {
-    ARTS_INFO_ONCE("No network interface given: defaulting to eth0");
+    ARTS_DEBUG_ONCE("No network interface given: defaulting to eth0");
 
     config->netInterface = NULL; // artsConfigMakeNewVar( "eth0" );
     config->ibNames = false;
@@ -720,7 +720,7 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->protocol = artsConfigMakeNewVar(foundVariable->value);
   else {
-    ARTS_INFO_ONCE("No protocol given: defaulting to tcp");
+    ARTS_DEBUG_ONCE("No protocol given: defaulting to tcp");
 
     config->protocol = artsConfigMakeNewVar("tcp");
   }
@@ -730,8 +730,7 @@ struct artsConfig *artsConfigLoad() {
     config->masterNode = artsConfigMakeNewVar(foundVariable->value);
   else if (strncmp(config->launcher, "local", 5) != 0) {
     if (strncmp(config->launcher, "slurm", 5) != 0)
-      ARTS_INFO_ONCE(
-          "No master given: defaulting to first node in node list");
+      ARTS_DEBUG_ONCE("No master given: defaulting to first node in node list");
 
     config->masterNode = NULL;
   }
@@ -754,12 +753,6 @@ struct artsConfig *artsConfigLoad() {
   else
     config->introspectiveConf = NULL;
 
-  if ((foundVariable = artsConfigFindVariable(&configVariables,
-                                              "introspectiveFolder")) != NULL)
-    config->introspectiveFolder = artsConfigMakeNewVar(foundVariable->value);
-  else
-    config->introspectiveFolder = NULL;
-
   if ((foundVariableChar = artsConfigFindVariableChar(
            configVariables, "introspectiveTraceLevel")) != NULL)
     config->introspectiveTraceLevel = strtol(foundVariableChar, &end, 10);
@@ -771,19 +764,6 @@ struct artsConfig *artsConfigLoad() {
     config->introspectiveStartPoint = strtol(foundVariableChar, &end, 10);
   else
     config->introspectiveStartPoint = 1;
-
-  if ((foundVariable =
-           artsConfigFindVariable(&configVariables, "counterFolder")) != NULL)
-    config->counterFolder = artsConfigMakeNewVar(foundVariable->value);
-  else
-    config->counterFolder = NULL;
-
-  if ((foundVariableChar = artsConfigFindVariableChar(
-           configVariables, "counterStartPoint")) != NULL)
-    config->counterStartPoint = strtol(foundVariableChar, &end, 10);
-  else {
-    config->counterStartPoint = 1;
-  }
 
   if ((foundVariableChar = artsConfigFindVariableChar(
            configVariables, "printNodeStats")) != NULL)
@@ -908,7 +888,7 @@ struct artsConfig *artsConfigLoad() {
 
   // WARNING: Slurm Launcher Set!
   if (strncmp(config->launcher, "slurm", 5) == 0) {
-    ARTS_INFO_ONCE("Using Slurm");
+    ARTS_DEBUG_ONCE("Using Slurm");
     config->masterBoot = false;
 
     char *threadsTemp = getenv("SLURM_CPUS_PER_TASK");
@@ -934,7 +914,7 @@ struct artsConfig *artsConfigLoad() {
       }
     }
   } else if (strncmp(config->launcher, "lsf", 5) == 0) {
-    ARTS_INFO_ONCE("Using LSF");
+    ARTS_DEBUG_ONCE("Using LSF");
     config->masterBoot = false;
     unsigned int count = 0;
     char *nodeList = extract_nodelist_lsf("LSB_HOSTS", 1, &count);
@@ -975,7 +955,7 @@ struct artsConfig *artsConfigLoad() {
       else
         config->nodes = artsConfigCountNodes(nodeList);
     } else {
-      ARTS_INFO_ONCE("No nodes given: defaulting to 1 node");
+      ARTS_DEBUG_ONCE("No nodes given: defaulting to 1 node");
       nodeList = artsMalloc(sizeof(char) * strlen("localhost\0"));
       strncpy(nodeList, "localhost\0", strlen("localhost\0") + 1);
       config->nodes = 1;
@@ -998,7 +978,7 @@ struct artsConfig *artsConfigLoad() {
       }
     }
   } else if (strncmp(config->launcher, "local", 5) == 0) {
-    ARTS_INFO_ONCE("Running in Local Mode.");
+    ARTS_DEBUG_ONCE("Running in Local Mode.");
     config->masterBoot = false;
     config->masterNode = NULL;
     // OS Threads
@@ -1017,7 +997,7 @@ struct artsConfig *artsConfigLoad() {
     config->tableLength = 1; // for GUID
     config->masterRank = 0;
   } else {
-    ARTS_INFO_ONCE("Unknown launcher: %s", config->launcher);
+    ARTS_DEBUG_ONCE("Unknown launcher: %s", config->launcher);
     exit(1);
   }
 
@@ -1032,7 +1012,7 @@ struct artsConfig *artsConfigLoad() {
                                               "workerInitDequeSize")) != NULL)
     config->dequeSize = strtol(foundVariable->value, &end, 10);
   else {
-    ARTS_INFO_ONCE("Defaulting the worker queue length to 4096");
+    ARTS_DEBUG_ONCE("Defaulting the worker queue length to 4096");
     config->dequeSize = 4096;
   }
 
@@ -1040,14 +1020,14 @@ struct artsConfig *artsConfigLoad() {
       NULL)
     config->port = strtol(foundVariable->value, &end, 10);
   else if (strncmp(config->launcher, "local", 5) != 0) {
-    ARTS_INFO_ONCE("Defaulting port to %d", 75563);
+    ARTS_DEBUG_ONCE("Defaulting port to %d", 75563);
     config->port = 75563;
   }
   if ((foundVariable =
            artsConfigFindVariable(&configVariables, "routeTableSize")) != NULL)
     config->routeTableSize = strtol(foundVariable->value, &end, 10);
   else {
-    ARTS_INFO_ONCE("Defaulting routing table size to 2^20");
+    ARTS_DEBUG_ONCE("Defaulting routing table size to 2^20");
     config->routeTableSize = 20;
   }
 

@@ -36,7 +36,6 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#include "arts/introspection/Counter.h"
 #include "arts/introspection/Introspection.h"
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/RT.h"
@@ -48,7 +47,7 @@ static void zeroMemory(char *addr, size_t size) {
 }
 
 void *artsMalloc(size_t size) {
-  ARTSEDTCOUNTERTIMERSTART(mallocMemory);
+  artsCounterTriggerTimerEvent(mallocMemory, true);
   size += sizeof(uint64_t);
   void *address;
   if (posix_memalign(&address, 16, size)) {
@@ -59,8 +58,8 @@ void *artsMalloc(size_t size) {
   *temp = size;
   address = (void *)(temp + 1);
   if (artsThreadInfo.mallocTrace)
-    artsUpdatePerformanceMetric(artsMallocBW, artsThread, size, false);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(mallocMemory);
+    artsMetricsTriggerEvent(artsMallocBW, artsThread, size);
+  artsCounterTriggerTimerEvent(mallocMemory, false);
   return address;
 }
 
@@ -74,7 +73,7 @@ void *artsRealloc(void *ptr, size_t size) {
 }
 
 void *artsCalloc(size_t size) {
-  ARTSEDTCOUNTERTIMERSTART(callocMemory);
+  artsCounterTriggerTimerEvent(callocMemory, true);
   size += sizeof(uint64_t);
   void *address;
   if (posix_memalign(&address, 16, size)) {
@@ -86,20 +85,20 @@ void *artsCalloc(size_t size) {
   *temp = size;
   address = (void *)(temp + 1);
   if (artsThreadInfo.mallocTrace)
-    artsUpdatePerformanceMetric(artsMallocBW, artsThread, size, false);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(callocMemory);
+    artsMetricsTriggerEvent(artsMallocBW, artsThread, size);
+  artsCounterTriggerTimerEvent(callocMemory, false);
   return address;
 }
 
 void artsFree(void *ptr) {
-  ARTSEDTCOUNTERTIMERSTART(freeMemory);
+  artsCounterTriggerTimerEvent(freeMemory, true);
   uint64_t *temp = (uint64_t *)ptr;
   temp--;
   uint64_t size = (*temp);
   free(temp);
   if (artsThreadInfo.mallocTrace)
-    artsUpdatePerformanceMetric(artsFreeBW, artsThread, size, false);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(freeMemory);
+    artsMetricsTriggerEvent(artsFreeBW, artsThread, size);
+  artsCounterTriggerTimerEvent(freeMemory, false);
 }
 
 void *artsMallocAlign(size_t size, size_t align) {

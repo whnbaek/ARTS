@@ -54,6 +54,7 @@
 #include "arts/runtime/memory/DbFunctions.h"
 #include "arts/runtime/network/RemoteFunctions.h"
 #include "arts/system/Debug.h"
+#include "arts/introspection/Introspection.h"
 #include "arts/system/TMT.h"
 #include "arts/system/Threads.h"
 #include "arts/utils/ArrayList.h"
@@ -82,9 +83,11 @@ void artsWriterLockYield(volatile unsigned int *readLock,
                          volatile unsigned int *writeLock) {
   unsigned int toSwap = tmtLiteAliasId + 1;
   while (artsAtomicCswap(writeLock, 0U, toSwap) != 0U) {
+    artsCounterTriggerEvent(sleepCounter, 1);
     sched_yield();
   }
   while ((*readLock)) {
+    artsCounterTriggerEvent(sleepCounter, 1);
     sched_yield();
   }
   return;
@@ -121,6 +124,7 @@ void artsTMTLiteShutdown() {
 void artsTMTLitePrivateCleanUp(unsigned int id) {
   ARTS_DEBUG("%u outstanding: %u", toCreateThreads, doneThreads);
   while (toCreateThreads != doneThreads) {
+    artsCounterTriggerEvent(sleepCounter, 1);
     sched_yield();
   }
   uint64_t outstanding = artsLengthArrayList(threadToJoin[id]);
@@ -240,6 +244,7 @@ void artsCreateLiteContexts2(volatile uint64_t *toDec, struct artsEdt *edt) {
 void artsYieldLiteContext() {
   unsigned int sourceId = artsThreadInfo.groupId;
   artsWriterUnlock(&threadWriterLock[sourceId]);
+  artsCounterTriggerEvent(sleepCounter, 1);
   sched_yield();
 }
 

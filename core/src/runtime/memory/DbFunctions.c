@@ -43,7 +43,6 @@
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gas/RouteTable.h"
 #include "arts/gpu/GpuRuntime.h"
-#include "arts/introspection/Counter.h"
 #include "arts/introspection/Introspection.h"
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/RT.h"
@@ -55,6 +54,7 @@
 #include "arts/system/Debug.h"
 #include "arts/utils/Atomics.h"
 #include <assert.h>
+// #include "arts/introspection/IntrospectionEvents.h"
 
 #ifdef USE_GPU
 #include "artsGpuRuntime.h"
@@ -118,7 +118,7 @@ void artsDbCreateInternal(artsGuid_t guid, void *addr, uint64_t size,
 
 artsGuid_t artsDbCreateRemote(unsigned int route, uint64_t size,
                               artsType_t mode) {
-  ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, true);
   artsGuid_t guid = artsGuidCreateForRank(route, mode);
   void *ptr = artsDbMalloc(mode, sizeof(struct artsDb));
   struct artsDb *db = (struct artsDb *)ptr;
@@ -127,19 +127,17 @@ artsGuid_t artsDbCreateRemote(unsigned int route, uint64_t size,
 
   artsRemoteMemoryMove(route, guid, ptr, sizeof(struct artsDb),
                        ARTS_REMOTE_DB_SEND_MSG, artsDbFree);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, false);
   return guid;
 }
 
 // Creates a local DB only
 artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode) {
-  ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, true);
   artsGuid_t guid = NULL_GUID;
   unsigned int dbSize = size + sizeof(struct artsDb);
 
-  ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-  void *ptr = artsDbMalloc(mode, dbSize);
-  ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
+  void *ptr = artsMallocWithType(dbSize, artsDbMemorySize);
   if (ptr) {
     guid = artsGuidCreateForRank(artsGlobalRankId, mode);
     artsDbCreateInternal(guid, ptr, size, dbSize, mode);
@@ -147,18 +145,16 @@ artsGuid_t artsDbCreate(void **addr, uint64_t size, artsType_t mode) {
     artsRouteTableAddItem(ptr, guid, artsGlobalRankId, false);
     *addr = (void *)((struct artsDb *)ptr + 1);
   }
-  ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, false);
   return guid;
 }
 
 artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode) {
-  ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, true);
   artsGuid_t guid = NULL_GUID;
   unsigned int dbSize = size + sizeof(struct artsDb);
 
-  ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-  void *ptr = artsDbMalloc(mode, dbSize);
-  ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
+  void *ptr = artsMallocWithType(dbSize, artsDbMemorySize);
   if (ptr) {
     guid = artsGuidCreateForRank(artsGlobalRankId, mode);
     artsDbCreateInternal(guid, ptr, size, dbSize, mode);
@@ -166,22 +162,20 @@ artsGuid_t artsDbCreatePtr(artsPtr_t *addr, uint64_t size, artsType_t mode) {
     artsRouteTableAddItem(ptr, guid, artsGlobalRankId, false);
     *addr = (artsPtr_t)((struct artsDb *)ptr + 1);
   }
-  ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, false);
   return guid;
 }
 
 // Guid must be for a local DB only
 void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
-  ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, true);
   artsType_t mode = artsGuidGetType(guid);
 
   void *ptr = NULL;
   if (artsIsGuidLocal(guid)) {
     unsigned int dbSize = size + sizeof(struct artsDb);
 
-    ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-    ptr = artsDbMalloc(mode, dbSize);
-    ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
+    ptr = artsMallocWithType(dbSize, artsDbMemorySize);
     if (ptr) {
       artsDbCreateInternal(guid, ptr, size, dbSize, mode);
       if (artsRouteTableAddItemRace(ptr, guid, artsGlobalRankId, false))
@@ -191,20 +185,18 @@ void *artsDbCreateWithGuid(artsGuid_t guid, uint64_t size) {
   }
   ARTS_INFO("Creating DB [Guid: %lu] [Mode: %s] [Ptr: %p] [Route: %d]", guid,
             getTypeName(mode), ptr, artsGuidGetRank(guid));
-  ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, false);
   return ptr;
 }
 
 void *artsDbCreateWithGuidAndData(artsGuid_t guid, void *data, uint64_t size) {
-  ARTSEDTCOUNTERTIMERSTART(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, true);
   artsType_t mode = artsGuidGetType(guid);
   void *ptr = NULL;
   if (artsIsGuidLocal(guid)) {
     unsigned int dbSize = size + sizeof(struct artsDb);
 
-    ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-    ptr = artsDbMalloc(mode, dbSize);
-    ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
+    ptr = artsMallocWithType(dbSize, artsDbMemorySize);
 
     if (ptr) {
       artsDbCreateInternal(guid, ptr, size, dbSize, mode);
@@ -215,7 +207,7 @@ void *artsDbCreateWithGuidAndData(artsGuid_t guid, void *data, uint64_t size) {
       ptr = dbData;
     }
   }
-  ARTSEDTCOUNTERTIMERENDINCREMENT(dbCreateCounter);
+  artsCounterTriggerTimerEvent(dbCreateCounter, false);
   return ptr;
 }
 
@@ -223,9 +215,7 @@ void *artsDbResizePtr(struct artsDb *dbRes, unsigned int size, bool copy) {
   if (dbRes) {
     unsigned int oldSize = dbRes->header.size;
     unsigned int newSize = size + sizeof(struct artsDb);
-    ARTSSETMEMSHOTTYPE(artsDbMemorySize);
-    struct artsDb *ptr = artsCalloc(size + sizeof(struct artsDb));
-    ARTSSETMEMSHOTTYPE(artsDefaultMemorySize);
+    struct artsDb *ptr = artsCallocWithType(newSize, artsDbMemorySize);
     if (ptr) {
       if (copy)
         memcpy(ptr, dbRes, oldSize);
@@ -413,7 +403,8 @@ void acquireDbs(struct artsEdt *edt) {
           // The Db hasn't been created yet
           else {
             // TODO: Create an out-of-order sync
-            ARTS_DEBUG("DB [Guid: %lu] out of order request for LC_SYNC not supported yet",
+            ARTS_DEBUG("DB [Guid: %lu] out of order request for LC_SYNC not "
+                       "supported yet",
                        depv[i].guid);
             // artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
@@ -462,7 +453,8 @@ void acquireDbs(struct artsEdt *edt) {
           }
           // The Db hasn't been created yet
           else {
-            ARTS_DEBUG("DB [Guid: %lu] out of order request slot %u", depv[i].guid, i);
+            ARTS_DEBUG("DB [Guid: %lu] out of order request slot %u",
+                       depv[i].guid, i);
             artsOutOfOrderHandleDbRequest(depv[i].guid, edt, i, true);
           }
         } else {
@@ -581,7 +573,7 @@ void internalGetFromDb(artsGuid_t edtGuid, artsGuid_t dbGuid, unsigned int slot,
       ARTS_INFO("Getting DB [Guid: %lu] From: %p", dbGuid, data);
       if (edtGuid != NULL_GUID)
         artsSignalEdtPtr(edtGuid, slot, ptr, size);
-      artsUpdatePerformanceMetric(artsGetBW, artsThread, size, false);
+      artsMetricsTriggerEvent(artsGetBW, artsThread, size);
     } else {
       assert(edtGuid != NULL_GUID && "DB not found and no EDT to signal");
       ARTS_INFO("Getting OO-DB [Guid: %lu] From: %p", dbGuid, NULL);
@@ -596,18 +588,18 @@ void internalGetFromDb(artsGuid_t edtGuid, artsGuid_t dbGuid, unsigned int slot,
 
 void artsGetFromDb(artsGuid_t edtGuid, artsGuid_t dbGuid, unsigned int slot,
                    unsigned int offset, unsigned int size) {
-  ARTSEDTCOUNTERTIMERSTART(getDbCounter);
+  artsCounterTriggerTimerEvent(getDbCounter, true);
   unsigned int rank = artsGuidGetRank(dbGuid);
   internalGetFromDb(edtGuid, dbGuid, slot, offset, size, rank);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(getDbCounter);
+  artsCounterTriggerTimerEvent(getDbCounter, false);
 }
 
 void artsGetFromDbAt(artsGuid_t edtGuid, artsGuid_t dbGuid, unsigned int slot,
                      unsigned int offset, unsigned int size,
                      unsigned int rank) {
-  ARTSEDTCOUNTERTIMERSTART(getDbCounter);
+  artsCounterTriggerTimerEvent(getDbCounter, true);
   internalGetFromDb(edtGuid, dbGuid, slot, offset, size, rank);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(getDbCounter);
+  artsCounterTriggerTimerEvent(getDbCounter, false);
 }
 
 void internalPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
@@ -625,7 +617,7 @@ void internalPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
         artsSignalEdt(edtGuid, slot, dbGuid);
       incrementFinishedEpoch(epochGuid);
       globalShutdownGuidIncFinished();
-      artsUpdatePerformanceMetric(artsPutBW, artsThread, size, false);
+      artsMetricsTriggerEvent(artsPutBW, artsThread, size);
     } else {
       void *cpyPtr = artsMalloc(size);
       memcpy(cpyPtr, ptr, size);
@@ -643,33 +635,33 @@ void internalPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
 void artsPutInDbAt(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
                    unsigned int slot, unsigned int offset, unsigned int size,
                    unsigned int rank) {
-  ARTSEDTCOUNTERTIMERSTART(putDbCounter);
+  artsCounterTriggerTimerEvent(putDbCounter, true);
   artsGuid_t epochGuid = artsGetCurrentEpochGuid();
   ARTS_DEBUG("Epoch [Guid: %lu]", epochGuid);
   incrementActiveEpoch(epochGuid);
   globalShutdownGuidIncActive();
   internalPutInDb(ptr, edtGuid, dbGuid, slot, offset, size, epochGuid, rank);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(putDbCounter);
+  artsCounterTriggerTimerEvent(putDbCounter, false);
 }
 
 void artsPutInDb(void *ptr, artsGuid_t edtGuid, artsGuid_t dbGuid,
                  unsigned int slot, unsigned int offset, unsigned int size) {
-  ARTSEDTCOUNTERTIMERSTART(putDbCounter);
+  artsCounterTriggerTimerEvent(putDbCounter, true);
   unsigned int rank = artsGuidGetRank(dbGuid);
   artsGuid_t epochGuid = artsGetCurrentEpochGuid();
   ARTS_DEBUG("Epoch [Guid: %lu]", epochGuid);
   incrementActiveEpoch(epochGuid);
   globalShutdownGuidIncActive();
   internalPutInDb(ptr, edtGuid, dbGuid, slot, offset, size, epochGuid, rank);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(putDbCounter);
+  artsCounterTriggerTimerEvent(putDbCounter, false);
 }
 
 void artsPutInDbEpoch(void *ptr, artsGuid_t epochGuid, artsGuid_t dbGuid,
                       unsigned int offset, unsigned int size) {
-  ARTSEDTCOUNTERTIMERSTART(putDbCounter);
+  artsCounterTriggerTimerEvent(putDbCounter, true);
   unsigned int rank = artsGuidGetRank(dbGuid);
   incrementActiveEpoch(epochGuid);
   globalShutdownGuidIncActive();
   internalPutInDb(ptr, NULL_GUID, dbGuid, 0, offset, size, epochGuid, rank);
-  ARTSEDTCOUNTERTIMERENDINCREMENT(putDbCounter);
+  artsCounterTriggerTimerEvent(putDbCounter, false);
 }

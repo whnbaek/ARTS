@@ -57,7 +57,6 @@
 #include "arts/system/Debug.h"
 #include "arts/utils/Deque.h"
 
-
 __thread int artsSavedDeviceId = -1;
 __thread int artsCurrentDeviceId = -1;
 
@@ -110,7 +109,7 @@ void *artsCudaMalloc(unsigned int size) {
   CHECKCORRECT(cudaMalloc(&ptr, size));
   if (!ptr) {
     ARTS_INFO("artsCudaMalloc failed %lu\n",
-           artsGpus[artsCurrentDeviceId].availGlobalMem);
+              artsGpus[artsCurrentDeviceId].availGlobalMem);
     artsDebugPrintStack();
     exit(1);
   }
@@ -162,9 +161,12 @@ artsGuid_t internalEdtCreateGpu(artsEdt_t funcPtr, artsGuid_t *guid,
   edt->passthrough = passThrough;
   edt->lib = lib;
 
-  artsEdtCreateInternal((struct artsEdt *)edt, ARTS_GPU_EDT, guid, route,
-                        artsThreadInfo.clusterId, edtSpace, NULL_GUID, funcPtr,
-                        paramc, paramv, depc, true, NULL_GUID, hasDepv);
+  artsIntrospectionEdtCreateBegin();
+  bool created = artsEdtCreateInternal((struct artsEdt *)edt, ARTS_GPU_EDT,
+                                       guid, route, artsThreadInfo.clusterId,
+                                       edtSpace, NULL_GUID, funcPtr, paramc,
+                                       paramv, depc, true, NULL_GUID, hasDepv);
+  artsIntrospectionEdtCreateFinish(created);
   //    ARTSEDTCOUNTERTIMERENDINCREMENT(edtCreateCounter);
   return *guid;
 }
@@ -341,7 +343,7 @@ struct artsEdt *artsRuntimeStealGpuTask() {
   return edt;
 }
 
-bool artsGpuSchedulerLoop() {
+bool artsGpuSchedulerLoop(void) {
   artsGpu_t *artsGpu = NULL;
   artsHandleNewEdts();
 
@@ -389,7 +391,7 @@ bool artsGpuSchedulerLoop() {
 __thread unsigned int backoff = 1;
 __thread unsigned int gcCounter = 0;
 
-bool artsGpuSchedulerBackoffLoop() {
+bool artsGpuSchedulerBackoffLoop(void) {
   artsGpu_t *artsGpu = NULL;
   artsHandleNewEdts();
 
@@ -448,7 +450,7 @@ bool artsGpuSchedulerBackoffLoop() {
 
 extern __thread unsigned int runGCFlag;
 
-bool artsGpuSchedulerDemandLoop() {
+bool artsGpuSchedulerDemandLoop(void) {
   artsGpu_t *artsGpu = NULL;
   artsHandleNewEdts();
 
@@ -597,7 +599,7 @@ void internalLCSyncGPU(artsGuid_t acqGuid, struct artsDb *db) {
           else
             lcSyncFunction[artsNodeInfo.gpuLCSync](&host, &dev);
 
-          artsUpdatePerformanceMetric(artsGpuSync, artsThread, 1, false);
+          artsMetricsTriggerEvent(artsGpuSync, artsThread, 1);
         }
       } else {
         ARTS_DEBUG("NO DB COPY ON GPU %d\n", i);
@@ -635,7 +637,7 @@ void internalLCSyncCPU(artsGuid_t acqGuid, struct artsDb *db) {
       unsigned int gpuVersion;
       unsigned int timeStamp;
       ARTS_DEBUG("acqGuid: %lu type: %u i: %u\n", acqGuid,
-              artsGuidGetType(acqGuid), i);
+                 artsGuidGetType(acqGuid), i);
       void *dataPtr =
           artsGpuRouteTableLookupDb(acqGuid, i, &gpuVersion, &timeStamp);
       if (dataPtr) {

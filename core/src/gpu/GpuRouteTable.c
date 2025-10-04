@@ -41,7 +41,7 @@
 #include "arts/gas/Guid.h"
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gpu/GpuStream.h"
-#include "arts/introspection/Counter.h"
+#include "arts/introspection/Introspection.h"
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/memory/DbList.h"
 #include "arts/system/Debug.h"
@@ -284,8 +284,8 @@ uint64_t artsGpuCleanUpRouteTable(unsigned int sizeToClean, bool cleanZeros,
       }
       item = artsRouteTableIterate(&iter);
     }
-    artsUpdatePerformanceMetric(artsGpuGC, artsThread, 1, false);
-    artsUpdatePerformanceMetric(artsGpuGCBW, artsThread, freedSize, false);
+    artsMetricsTriggerEvent(artsGpuGC, artsThread, 1);
+    artsMetricsTriggerEvent(artsGpuGCBW, artsThread, freedSize);
     artsUnlock(&gpuRouteTable->gcLock);
   }
   gpuGCReadUnlock();

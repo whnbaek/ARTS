@@ -41,6 +41,7 @@
 #include "arts/gas/Guid.h"
 #include "arts/gas/OutOfOrder.h"
 #include "arts/gas/RouteTable.h"
+#include "arts/introspection/Introspection.h"
 #include "arts/runtime/Globals.h"
 #include "arts/runtime/RT.h"
 #include "arts/runtime/compute/EdtFunctions.h"
@@ -50,7 +51,6 @@
 #include "arts/system/TMT.h"
 #include "arts/utils/ArrayList.h"
 #include "arts/utils/Atomics.h"
-
 
 #define EpochMask 0x7FFFFFFFFFFFFFFF
 #define EpochBit 0x8000000000000000
@@ -534,7 +534,7 @@ artsEpoch_t *getPoolEpoch(artsGuid_t edtGuid, unsigned int slot) {
 }
 
 void artsYield() {
-  ARTSCOUNTERINCREMENT(yield);
+  artsCounterTriggerEvent(yield, 1);
   threadLocal_t tl;
   artsSaveThreadLocal(&tl);
   artsNodeInfo.scheduler();
@@ -561,7 +561,7 @@ bool artsWaitOnHandle(artsGuid_t epochGuid) {
       incrementFinishedEpoch(local);
       //        globalShutdownGuidIncFinished();
 
-      ARTSCOUNTERINCREMENT(yield);
+      artsCounterTriggerEvent(yield, 1);
       threadLocal_t tl;
       artsSaveThreadLocal(&tl);
       while (flag)

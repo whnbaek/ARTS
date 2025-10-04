@@ -80,7 +80,6 @@ struct artsConfig {
   unsigned int dequeSize;
   unsigned int introspectiveTraceLevel;
   unsigned int introspectiveStartPoint;
-  unsigned int counterStartPoint;
   unsigned int printNodeStats;
   unsigned int scheduler;
   unsigned int shutdownEpoch;
@@ -96,9 +95,7 @@ struct artsConfig {
   unsigned int shadLoopStride;
   uint64_t stackSize;
   struct artsRemoteLauncher *launcherData;
-  char *introspectiveFolder;
   char *introspectiveConf;
-  char *counterFolder;
   unsigned int tableLength;
   unsigned int
       tMT; // @awmm temporal MT; # of MT aliases per core thread; 0 if disabled

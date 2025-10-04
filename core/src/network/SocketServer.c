@@ -73,7 +73,6 @@
 // #include <linux/if_packet.h>
 // #include <linux/if_arp.h>
 
-
 struct artsConfig *artsGlobalMessageTable;
 unsigned int ports;
 // SOCKETS!
@@ -304,7 +303,8 @@ static inline bool artsRemoteConnect(int rank, unsigned int port) {
   ARTS_DEBUG("connecy try %d", rank);
   // sleep(10);
   if (!remoteConnectionAlive[rank * ports + port]) {
-    ARTS_DEBUG("connecy %d %d", rank, remoteSocketSendList[rank * ports + port]);
+    ARTS_DEBUG("connecy %d %d", rank,
+               remoteSocketSendList[rank * ports + port]);
     artsPrintSocketAddr(&remoteServerSendList[rank * ports + port]);
     int res = rconnect(
         remoteSocketSendList[rank * ports + port],
@@ -315,10 +315,10 @@ static inline bool artsRemoteConnect(int rank, unsigned int port) {
       //     artsDebugGenerateSegFault();
       void *ptrCrap;
       ARTS_DEBUG("%d error %s %d %p %d %s", rank, strerror(errno), errno,
-              ptrCrap, remoteSocketSendList[rank],
-              artsGlobalMessageTable->table[rank].ipAddress);
+                 ptrCrap, remoteSocketSendList[rank],
+                 artsGlobalMessageTable->table[rank].ipAddress);
       ARTS_DEBUG("[%d]Connect Failed to rank %d %d", artsGlobalRankId, rank,
-              res);
+                 res);
 
       remoteConnectionAlive[rank] = false;
 
@@ -362,9 +362,10 @@ int artsActualSend(char *message, unsigned int length, int rank, int port) {
   if (res < 0) {
     if (errno != EAGAIN) {
       struct artsRemotePacket *pk = (void *)message;
-      ARTS_INFO("artsRemoteSendRequest %u Socket appears to be closed to rank %d: "
-             " %s",
-             pk->messageType, rank, strerror(errno));
+      ARTS_INFO(
+          "artsRemoteSendRequest %u Socket appears to be closed to rank %d: "
+          " %s",
+          pk->messageType, rank, strerror(errno));
       artsRuntimeStop();
       return -1;
     }
@@ -376,7 +377,7 @@ unsigned int artsRemoteSendRequest(int rank, unsigned int queue, char *message,
                                    unsigned int length) {
   int port = queue % ports;
   if (artsRemoteConnect(rank, port)) {
-#ifdef COUNT
+#ifdef COUNTERS
     // struct artsRemotePacket * pk = (void *)message;
     // if(!pk->timeStamp)
     //     pk->timeStamp = artsExtGetTimeStamp();
@@ -391,7 +392,7 @@ unsigned int artsRemoteSendPayloadRequest(int rank, unsigned int queue,
                                           char *payload, int length2) {
   int port = queue % ports;
   if (artsRemoteConnect(rank, port)) {
-#ifdef COUNT
+#ifdef COUNTERS
     // struct artsRemotePacket * pk = (void *)message;
     // if(!pk->timeStamp)
     //     pk->timeStamp = artsExtGetTimeStamp();
@@ -454,7 +455,7 @@ bool artsRemoteSetupIncoming() {
   FD_ZERO(&readSet);
   for (i = 0; i < artsGlobalMessageTable->tableLength; i++) {
     ARTS_DEBUG("%d %d", artsGlobalMessageTable->myRank,
-            artsGlobalMessageTable->table[i].rank);
+               artsGlobalMessageTable->table[i].rank);
     if (artsGlobalMessageTable->myRank ==
         artsGlobalMessageTable->table[i].rank) {
       ARTS_DEBUG("Receive go %d", i);
@@ -462,8 +463,6 @@ bool artsRemoteSetupIncoming() {
         for (int z = 0; z < ports; z++) {
           ARTS_DEBUG("%d", j);
           sLength = sizeof(struct sockaddr_in);
-          // remoteSocketRecieveList[j] = raccept(localSocketRecieve, (struct
-          // sockaddr *)&remoteServerRecieveList[j], &sLength );
           remoteSocketRecieveList[z + j * ports] = raccept(
               localSocketRecieve[z], (struct sockaddr *)&test, &sLength);
 
@@ -730,7 +729,7 @@ bool artsServerTryToRecieve(char **inBuffer, int *inPacketSize,
                 break;
 
               ARTS_DEBUG("gg2 %d %d %d %d", res, packet->rank, packet->size,
-                      packet->messageType);
+                         packet->messageType);
 
               if (bypassPacketSize[pos] < packet->size) {
                 // ARTS_INFO("Here5");
@@ -891,15 +890,14 @@ void artsServerPingPongTestRecieve(char *inBuffer, int inPacketSize) {
             }
             if (packet->messageType == ARTS_REMOTE_PINGPONG_TEST_MSG) {
               recieved = true;
-              artsUpdatePerformanceMetric(artsNetworkRecieveBW, artsThread,
-                                          packet->size, false);
-              artsUpdatePerformanceMetric(artsFreeBW + packet->messageType,
-                                          artsThread, 1, false);
-              artsUpdatePacketInfo(packet->size);
-              // ARTS_INFO("Recv Packet %d %d", res, packet->size);
+              artsMetricsTriggerEvent(artsNetworkRecieveBW, artsThread,
+                                      packet->size);
+              artsMetricsTriggerEvent(artsFreeBW + packet->messageType,
+                                      artsThread, 1);
+              artsMetricsUpdatePacketInfo(packet->size);
             } else {
               ARTS_INFO("Shit Packet %d %d %d", packet->messageType,
-                     packet->size, packet->rank);
+                        packet->size, packet->rank);
             }
             res -= packet->size;
             packet =

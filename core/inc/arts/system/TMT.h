@@ -56,9 +56,9 @@
 #define CORE_INC_ARTS_TMT_H_
 
 #include "arts/arts.h"
+#include "arts/runtime/Runtime.h"
 #include "arts/system/AbstractMachineModel.h"
 #include "arts/system/Config.h"
-#include "arts/runtime/Runtime.h"
 #include "arts/utils/Queue.h"
 #include <semaphore.h>
 
@@ -77,7 +77,8 @@ typedef union {
   } fields;
 } artsTicket;
 
-typedef struct internalMsi {
+// Assume in TMT.c struct
+typedef struct internalMsi_t {
   pthread_t *aliasThreads;
   sem_t *sem;
   volatile bool **alive;
@@ -87,15 +88,17 @@ typedef struct internalMsi {
                                               // track of outstanding promises
                                               // (we can only wait on one
                                               // context at a time)
-  volatile accst_t alias_running; // FIXME: right data structure?
+  volatile accst_t alias_running;             // FIXME: right data structure?
   volatile accst_t alias_avail;
   volatile unsigned int startUpCount;
   volatile unsigned int shutDownCount;
-  struct internalMsi *next;
+  struct internalMsi_t *next;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond[64];
 } internalMsi_t;
 
 typedef struct msi {
-  internalMsi_t *head;
+  struct internalMsi_t *head;
   volatile unsigned int blocked;
   volatile unsigned int total;
   volatile unsigned int wakeUpNext;
@@ -105,7 +108,7 @@ typedef struct msi {
 typedef struct {
   uint32_t aliasId;                    // alias id
   struct artsRuntimePrivate *tlToCopy; // we copy the master thread's TL
-  internalMsi_t *localInternal;
+  struct internalMsi_t *localInternal;
   sem_t *startUpSem;
 } tmask_t; // per alias thread info
 

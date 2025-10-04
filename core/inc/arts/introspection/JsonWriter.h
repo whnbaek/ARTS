@@ -36,94 +36,41 @@
 ** WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the  **
 ** License for the specific language governing permissions and limitations   **
 ******************************************************************************/
-#ifndef ARTSCOUNTER_H
-#define ARTSCOUNTER_H
+#ifndef ARTS_JSON_WRITER_H
+#define ARTS_JSON_WRITER_H
+
+#include <stdint.h>
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef COUNTERS
-#include "arts/arts.h"
-#include "arts/runtime/Globals.h"
-#include "arts/utils/ArrayList.h"
-
-extern const char *const artsCounterNames[];
-extern uint64_t countersOn;
-
-void artsCounterConfigSetDefaultEnabled(bool enabled);
-void artsCounterConfigSetEnabled(const char *name, bool enabled);
-
-#define ARTS_COUNTERS_IS_ACTIVE() (countersOn && artsThreadInfo.localCounting)
-#define COUNTERTIMESTAMP artsGetTimeStamp()
-#define GETCOUNTERNAME(x) artsCounterNames[x]
-#define COUNTERARRAYBLOCKSIZE 128
-#define COUNTERPREFIXSIZE 1024
-#define FIRSTCOUNTER edtCounter
-#define LASTCOUNTER lastCounter
-
-enum artsCounterType {
-  edtCounter = 0,
-  sleepCounter,
-  totalCounter,
-  signalEventCounter,
-  signalPersistentEventCounter,
-  signalEdtCounter,
-  edtCreateCounter,
-  eventCreateCounter,
-  persistentEventCreateCounter,
-  dbCreateCounter,
-  smartDbCreateCounter,
-  mallocMemory,
-  callocMemory,
-  freeMemory,
-  guidAllocCounter,
-  guidLookupCounter,
-  getDbCounter,
-  putDbCounter,
-  contextSwitch,
-  yield,
-  remoteMemoryMove,
-  lastCounter
-};
-typedef enum artsCounterType artsCounterType;
+#define ARTS_JSON_MAX_DEPTH 32
 
 typedef struct {
-  unsigned int threadId;
-  unsigned int nodeId;
-  const char *name;
-  bool enabled;
-  uint64_t count;
-  uint64_t totalTime;
-  uint64_t startTime;
-  uint64_t endTime;
-} artsCounter;
+  FILE *fp;
+  unsigned indentSize;
+  unsigned depth;
+  uint8_t needComma[ARTS_JSON_MAX_DEPTH];
+} artsJsonWriter;
 
-/// Private methods
-void artsCounterInitList(unsigned int threadId, unsigned int nodeId);
-void artsCounterStart(unsigned int startPoint);
-void artsCounterStop();
-inline unsigned int artsCounterIsActive() { return countersOn; }
-artsCounter *artsCounterCreate(unsigned int threadId, unsigned int nodeId,
-                               const char *counterName);
-artsCounter *artsCounterGet(artsCounterType counter);
-artsCounter *artsCounterGetUser(unsigned int index, char *name);
-void artsCounterReset(artsCounter *counter);
-void artsCounterIncrement(artsCounter *counter);
-void artsCounterIncrementBy(artsCounter *counter, uint64_t num);
-void artsCounterTimerStart(artsCounter *counter);
-void artsCounterTimerEndIncrement(artsCounter *counter);
-void artsCounterTimerEndIncrementBy(artsCounter *counter, uint64_t num);
-void artsCounterTimerEndOverwrite(artsCounter *counter);
-void artsCounterSetStartTime(artsCounter *counter, uint64_t start);
-void artsCounterSetEndTime(artsCounter *counter, uint64_t end);
-void artsCounterAddEndTime(artsCounter *counter);
-void artsCounterNonEmtpy(artsCounter *counter);
-uint64_t artsCounterGetStartTime(artsCounter *counter);
-uint64_t artsCounterGetEndTime(artsCounter *counter);
-void artsCounterAddTime(artsCounter *counter, uint64_t time);
-#endif
+void artsJsonWriterInit(artsJsonWriter *writer, FILE *fp, unsigned indentSize);
+void artsJsonWriterBeginObject(artsJsonWriter *writer, const char *key);
+void artsJsonWriterEndObject(artsJsonWriter *writer);
+void artsJsonWriterBeginArray(artsJsonWriter *writer, const char *key);
+void artsJsonWriterEndArray(artsJsonWriter *writer);
+void artsJsonWriterWriteUInt64(artsJsonWriter *writer, const char *key,
+                               uint64_t value);
+void artsJsonWriterWriteDouble(artsJsonWriter *writer, const char *key,
+                               double value);
+void artsJsonWriterWriteString(artsJsonWriter *writer, const char *key,
+                               const char *value);
+void artsJsonWriterWriteNull(artsJsonWriter *writer, const char *key);
+void artsJsonWriterFinish(artsJsonWriter *writer);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* ARTSCOUNTER_H */
+
+#endif /* ARTS_JSON_WRITER_H */

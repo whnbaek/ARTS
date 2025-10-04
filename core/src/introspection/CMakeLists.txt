@@ -37,5 +37,19 @@
 ## License for the specific language governing permissions and limitations
 ###############################################################################
 
-file(GLOB introspection_src "*.c")
+# Conditionally add introspection source files
+set(introspection_src "IntrospectionStub.c")
+
+if(COUNTERS OR METRICS)
+    list(APPEND introspection_src "Introspection.c" "JsonWriter.c")
+endif()
+
+if(COUNTERS)
+    list(APPEND introspection_src "Counter.c")
+endif()
+
+if(METRICS)
+    list(APPEND introspection_src "Metrics.c")
+endif()
+
 add_library(introspection OBJECT ${introspection_src})
