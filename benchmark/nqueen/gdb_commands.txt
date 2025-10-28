@@ -1,0 +1,10 @@
+set pagination off
+set logging file gdb_backtrace.txt
+set logging on
+run
+bt
+bt full
+info registers
+info threads
+thread apply all bt
+quit
