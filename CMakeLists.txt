@@ -88,7 +88,7 @@ option(USE_RDMA "Use RDMA RSockets networking (default: ON, use TCP when OFF)" O
 option(USE_HWLOC "Use hwloc for hardware topology (default: ON, disable when OFF)" ON)
 option(USE_GPU "Enable GPU support (default: ON, disable when OFF)" ON)
 option(USE_SIMPLE_ARCH "Use simple architecture implementations" OFF)
-option(USE_SMART_DB "Enable smart database features (currently not supported)" OFF)
+option(USE_SMART_DB "Enable smart database features" ON)
 option(ARTS_INFO_ENABLED "Enable info-level logging" OFF)
 option(ARTS_DEBUG_ENABLED "Enable debug-level logging" OFF)
 option(USE_PRIORITY_DEQUE "Use priority Chase-Lev deque implementation" OFF)
