@@ -49,6 +49,9 @@ extern "C" {
 #include <stdint.h>
 
 #include "arts/utils/LinkList.h"
+#ifdef USE_MPSC_INBOX
+#include "arts/utils/MpscQueue.h"
+#endif
 
 /// GUID type
 typedef intptr_t artsGuid_t;
@@ -167,6 +170,10 @@ struct artsEdt {
   unsigned int node;
   volatile unsigned int depcNeeded;
   volatile unsigned int invalidateCount;
+#ifdef USE_MPSC_INBOX
+  unsigned int affinity;             // Target worker thread ID for scheduling
+  struct artsMpscNode inboxNode;     // For MPSC queue intrusive linked list
+#endif
 } __attribute__((aligned));
 
 struct artsDependent {

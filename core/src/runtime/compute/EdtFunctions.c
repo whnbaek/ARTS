@@ -196,6 +196,14 @@ bool artsEdtCreateInternal(struct artsEdt *edt, artsType_t mode,
     edt->cluster = cluster;
     edt->depcNeeded = depc;
 
+#ifdef USE_MPSC_INBOX
+    // Set affinity to the current thread ID (parent EDT's thread)
+    // This enables affinity-based scheduling where child EDTs
+    // are preferentially scheduled on the same core as the parent
+    edt->affinity = artsThreadInfo.threadId;
+    edt->inboxNext = NULL;
+#endif
+
     if (useEpoch) {
       artsGuid_t currentEpochGuid = NULL_GUID;
       if (epochGuid && artsCheckEpochIsRoot(epochGuid))

@@ -96,7 +96,7 @@ if(ARTS_BUILD_STATIC)
         ${M_LIBRARY}
         ${ANL_LIBRARY}
         ${RDMACM_LIBRARIES}
-        ${HWLOC_LIBRARIES}
+        ${HWLOC_LIBRARIES_STATIC}
     )
 
     # Add macOS framework dependencies for hwloc
@@ -145,7 +145,7 @@ if(ARTS_BUILD_SHARED)
         ${M_LIBRARY}
         ${ANL_LIBRARY}
         ${RDMACM_LIBRARIES}
-        ${HWLOC_LIBRARIES}
+        ${HWLOC_LIBRARIES_SHARED}
     )
 
     # Add macOS framework dependencies for hwloc
@@ -203,7 +203,7 @@ if(BUILD_CUDA_LIBRARY)
             ${M_LIBRARY}
             ${ANL_LIBRARY}
             ${RDMACM_LIBRARIES}
-            ${HWLOC_LIBRARIES}
+            ${HWLOC_LIBRARIES_STATIC}
             CUDA::cudart
             CUDA::cuda_driver
             CUDA::cublas
@@ -259,7 +259,7 @@ if(BUILD_CUDA_LIBRARY)
             ${M_LIBRARY}
             ${ANL_LIBRARY}
             ${RDMACM_LIBRARIES}
-            ${HWLOC_LIBRARIES}
+            ${HWLOC_LIBRARIES_SHARED}
             CUDA::cudart
             CUDA::cuda_driver
             CUDA::cublas

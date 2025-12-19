@@ -93,6 +93,10 @@ option(ARTS_DEBUG_ENABLED "Enable debug-level logging" OFF)
 option(USE_PRIORITY_DEQUE "Use priority Chase-Lev deque implementation" OFF)
 option(USE_LOCAL_CUDA_ARCHITECTURES "Auto-detect CUDA architectures from local GPUs using nvidia-smi" ON)
 
+# Intra-node scheduler policy selection
+set(INTRA_NODE_SCHEDULER "CHASE_LEV_DEQUE" CACHE STRING "Intra-node scheduling policy")
+set_property(CACHE INTRA_NODE_SCHEDULER PROPERTY STRINGS "CHASE_LEV_DEQUE" "CHASE_LEV_DEQUE_MPSC_QUEUE")
+
 # Compiler-specific settings
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Configuring Debug build")
@@ -298,6 +302,14 @@ set(COUNTER_CONFIG_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/counter.cfg"
     CACHE FILEPATH "ARTS counter configuration file (parsed to generate introspection macros)")
 set(COUNTER_CONFIG_FILE "${COUNTER_CONFIG_PATH}")
+
+# Intra-node scheduler configuration
+if(INTRA_NODE_SCHEDULER STREQUAL "CHASE_LEV_DEQUE_MPSC_QUEUE")
+    add_compile_definitions(USE_MPSC_INBOX)
+    message(STATUS "Intra-node scheduler: Chase-Lev Deque with MPSC Queue inbox - USE_MPSC_INBOX defined")
+else()
+    message(STATUS "Intra-node scheduler: Chase-Lev Deque (default)")
+endif()
 
 # Create the main ARTS library target
 add_subdirectory(core)

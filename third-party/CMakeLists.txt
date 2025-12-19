@@ -40,7 +40,7 @@ function(build_hwloc)
 
     message(STATUS "Configuring hwloc with prefix: ${CMAKE_INSTALL_PREFIX}")
     execute_process(
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/hwloc/configure --prefix=${CMAKE_INSTALL_PREFIX} --disable-rsmi --enable-static --enable-shared
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/hwloc/configure --prefix=${CMAKE_INSTALL_PREFIX} --disable-rsmi --enable-static --enable-shared --with-pic
         WORKING_DIRECTORY ${HWLOC_BUILD_DIR}
         RESULT_VARIABLE CONFIGURE_RESULT
     )
@@ -90,12 +90,20 @@ if(USE_HWLOC AND NOT HWLOC_FOUND)
         build_hwloc()
     endif()
 
-    # Prefer shared library over static
-    if(EXISTS ${HWLOC_LIB_SO})
-        set(HWLOC_LIBRARIES "${HWLOC_LIB_SO}")
+    # Set both static and shared library paths
+    # Use static for arts_static, shared for arts_shared
+    if(EXISTS ${HWLOC_LIB_A})
+        set(HWLOC_LIBRARIES_STATIC "${HWLOC_LIB_A}")
     else()
-        set(HWLOC_LIBRARIES "${HWLOC_LIB_A}")
+        set(HWLOC_LIBRARIES_STATIC "${HWLOC_LIB_SO}")
     endif()
+    if(EXISTS ${HWLOC_LIB_SO})
+        set(HWLOC_LIBRARIES_SHARED "${HWLOC_LIB_SO}")
+    else()
+        set(HWLOC_LIBRARIES_SHARED "${HWLOC_LIB_A}")
+    endif()
+    # Default HWLOC_LIBRARIES to shared for backward compatibility
+    set(HWLOC_LIBRARIES "${HWLOC_LIBRARIES_SHARED}")
     set(HWLOC_INCLUDE_DIRS "${CMAKE_INSTALL_PREFIX}/include")
     set(HWLOC_FOUND TRUE)
 
@@ -110,6 +118,8 @@ if(USE_HWLOC AND NOT HWLOC_FOUND)
 
     # Export variables to parent scope
     set(HWLOC_LIBRARIES ${HWLOC_LIBRARIES} PARENT_SCOPE)
+    set(HWLOC_LIBRARIES_STATIC ${HWLOC_LIBRARIES_STATIC} PARENT_SCOPE)
+    set(HWLOC_LIBRARIES_SHARED ${HWLOC_LIBRARIES_SHARED} PARENT_SCOPE)
     set(HWLOC_INCLUDE_DIRS ${HWLOC_INCLUDE_DIRS} PARENT_SCOPE)
     set(HWLOC_FOUND ${HWLOC_FOUND} PARENT_SCOPE)
     set(HWLOC_VERSION ${HWLOC_VERSION} PARENT_SCOPE)

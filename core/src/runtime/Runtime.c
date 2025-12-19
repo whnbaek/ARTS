@@ -58,6 +58,11 @@
 #include "arts/utils/Atomics.h"
 #include "arts/utils/Deque.h"
 
+#ifdef USE_MPSC_INBOX
+#include "arts/utils/MpscQueue.h"
+#include <stddef.h>  // for offsetof
+#endif
+
 #ifdef USE_GPU
 #include "arts/gpu/GpuRuntime.cuh"
 #include "arts/gpu/GpuStream.h"
@@ -132,6 +137,11 @@ void artsRuntimeNodeInit(unsigned int workerThreads,
                       : NULL;
   artsNodeInfo.gpuDeque = (struct artsDeque **)artsMalloc(
       sizeof(struct artsDeque *) * totalThreads);
+#ifdef USE_MPSC_INBOX
+  // Allocate inbox array for affinity-based scheduling
+  artsNodeInfo.inbox = (struct artsMpscQueue **)artsMalloc(
+      sizeof(struct artsMpscQueue *) * totalThreads);
+#endif
   artsNodeInfo.routeTable =
       (artsRouteTable_t **)artsCalloc(totalThreads, sizeof(artsRouteTable_t *));
   artsNodeInfo.gpuRouteTable =
@@ -260,6 +270,9 @@ void artsRuntimeGlobalCleanup() {
   artsFree(artsNodeInfo.deque);
   artsFree(artsNodeInfo.receiverDeque);
   artsFree(artsNodeInfo.gpuDeque);
+#ifdef USE_MPSC_INBOX
+  artsFree(artsNodeInfo.inbox);
+#endif
   artsFree(artsNodeInfo.gpuRouteTable);
   artsFree((void *)artsNodeInfo.localSpin);
   artsFree(artsNodeInfo.memoryMoves);
@@ -314,6 +327,10 @@ void artsRuntimePrivateInit(struct threadMask *unit,
       artsDequeNew(config->dequeSize);
   artsNodeInfo.gpuDeque[unit->id] = artsThreadInfo.myGpuDeque =
       (config->gpu) ? artsDequeNew(config->dequeSize) : NULL;
+#ifdef USE_MPSC_INBOX
+  // Initialize MPSC inbox for affinity-based scheduling
+  artsNodeInfo.inbox[unit->id] = artsThreadInfo.myInbox = artsMpscQueueNew();
+#endif
   if (unit->worker) {
     artsNodeInfo.routeTable[unit->id] =
         artsNewRouteTable(config->routeTableEntries, config->routeTableSize);
@@ -479,10 +496,27 @@ void artsHandleReadyEdt(struct artsEdt *edt) {
     else
 #endif
     {
-      if (edt->header.type == ARTS_EDT)
+      if (edt->header.type == ARTS_EDT) {
+#ifdef USE_MPSC_INBOX
+        // Affinity-based scheduling: push to target thread's queue
+        unsigned int targetThread = edt->affinity;
+        if (targetThread == artsThreadInfo.threadId) {
+          // Same thread: push directly to local deque
+          artsDequePushFront(artsThreadInfo.myDeque, edt, 0);
+        } else if (targetThread < artsNodeInfo.totalThreadCount) {
+          // Different thread: push to target's inbox (MPSC queue)
+          artsMpscQueuePush(artsNodeInfo.inbox[targetThread], 
+                           &edt->inboxNode);
+        } else {
+          // Invalid affinity, fall back to local deque
+          artsDequePushFront(artsThreadInfo.myDeque, edt, 0);
+        }
+#else
         artsDequePushFront(artsThreadInfo.myDeque, edt, 0);
-      else if (edt->header.type == ARTS_GPU_EDT)
+#endif
+      } else if (edt->header.type == ARTS_GPU_EDT) {
         artsDequePushFront(artsThreadInfo.myGpuDeque, edt, 0);
+      }
     }
     artsMetricsTriggerEvent(artsEdtQueue, artsThread, 1);
   }
@@ -533,6 +567,40 @@ void artsRunEdt(struct artsEdt *edt) {
   decOustandingEdts(1);
 }
 
+#ifdef USE_MPSC_INBOX
+/**
+ * Drain the inbox and push all EDTs to the local deque, returning the last one.
+ * 
+ * Optimization: Instead of pushing all items to the deque and then popping,
+ * we drain the inbox, push all but the last item to the deque, and return
+ * the last item directly to avoid an unnecessary push/pop pair.
+ */
+static inline struct artsEdt *artsDrainInboxAndGetOne() {
+  struct artsMpscNode *node;
+  struct artsEdt *lastEdt = NULL;
+  
+  // First, try to get one item from inbox
+  node = artsMpscQueuePop(artsThreadInfo.myInbox);
+  if (node == NULL) {
+    return NULL;
+  }
+  
+  // Convert node to EDT pointer using container_of pattern
+  // The node pointer points to edt->inboxNode, so we compute the container address
+  lastEdt = (struct artsEdt *)((char *)node - offsetof(struct artsEdt, inboxNode));
+  
+  // Drain remaining items from inbox and push them to deque
+  while ((node = artsMpscQueuePop(artsThreadInfo.myInbox)) != NULL) {
+    // Push previous lastEdt to deque
+    artsDequePushFront(artsThreadInfo.myDeque, lastEdt, 0);
+    // Update lastEdt to current node
+    lastEdt = (struct artsEdt *)((char *)node - offsetof(struct artsEdt, inboxNode));
+  }
+  
+  return lastEdt;
+}
+#endif
+
 inline struct artsEdt *artsRuntimeStealFromNetwork() {
   struct artsEdt *edt = NULL;
   if (artsGlobalRankCount > 1) {
@@ -565,6 +633,10 @@ bool artsNetworkFirstSchedulerLoop() {
   if (!(edtFound = artsRuntimeStealFromNetwork())) {
     if (!(edtFound = (struct artsEdt *)artsDequePopFront(
               artsThreadInfo.myNodeDeque))) {
+#ifdef USE_MPSC_INBOX
+      // Check inbox right before myDeque (inbox is coupled with myDeque)
+      if (!(edtFound = artsDrainInboxAndGetOne()))
+#endif
       if (!(edtFound =
                 (struct artsEdt *)artsDequePopFront(artsThreadInfo.myDeque)))
         edtFound = artsRuntimeStealFromWorker();
@@ -581,6 +653,10 @@ bool artsNetworkBeforeStealSchedulerLoop() {
   struct artsEdt *edtFound;
   if (!(edtFound =
             (struct artsEdt *)artsDequePopFront(artsThreadInfo.myNodeDeque))) {
+#ifdef USE_MPSC_INBOX
+    // Check inbox right before myDeque (inbox is coupled with myDeque)
+    if (!(edtFound = artsDrainInboxAndGetOne()))
+#endif
     if (!(edtFound =
               (struct artsEdt *)artsDequePopFront(artsThreadInfo.myDeque))) {
       if (!(edtFound = artsRuntimeStealFromNetwork()))
@@ -597,11 +673,14 @@ bool artsNetworkBeforeStealSchedulerLoop() {
 
 struct artsEdt *artsFindEdt() {
   struct artsEdt *edtFound = NULL;
+#ifdef USE_MPSC_INBOX
+  // Check inbox right before myDeque (inbox is coupled with myDeque)
+  if (!(edtFound = artsDrainInboxAndGetOne()))
+#endif
   if (!(edtFound =
             (struct artsEdt *)artsDequePopFront(artsThreadInfo.myDeque))) {
-    if (!edtFound)
-      if (!(edtFound = artsRuntimeStealFromWorker()))
-        edtFound = artsRuntimeStealFromNetwork();
+    if (!(edtFound = artsRuntimeStealFromWorker()))
+      edtFound = artsRuntimeStealFromNetwork();
 
     if (edtFound)
       artsMetricsTriggerEvent(artsEdtSteal, artsThread, 1);
@@ -611,11 +690,14 @@ struct artsEdt *artsFindEdt() {
 
 bool artsDefaultSchedulerLoop() {
   struct artsEdt *edtFound = NULL;
+#ifdef USE_MPSC_INBOX
+  // Check inbox right before myDeque (inbox is coupled with myDeque)
+  if (!(edtFound = artsDrainInboxAndGetOne()))
+#endif
   if (!(edtFound =
             (struct artsEdt *)artsDequePopFront(artsThreadInfo.myDeque))) {
-    if (!edtFound)
-      if (!(edtFound = artsRuntimeStealFromWorker()))
-        edtFound = artsRuntimeStealFromNetwork();
+    if (!(edtFound = artsRuntimeStealFromWorker()))
+      edtFound = artsRuntimeStealFromNetwork();
 
     if (edtFound)
       artsMetricsTriggerEvent(artsEdtSteal, artsThread, 1);

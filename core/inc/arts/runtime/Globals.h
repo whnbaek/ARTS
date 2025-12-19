@@ -46,6 +46,10 @@ extern "C" {
 #include "arts/introspection/Counter.h"
 #include "arts/runtime/RT.h"
 
+#ifdef USE_MPSC_INBOX
+struct artsMpscQueue;  // Forward declaration
+#endif
+
 struct atomicCreateBarrierInfo {
   volatile unsigned int wait;
   volatile unsigned int result;
@@ -62,6 +66,9 @@ struct artsRuntimeShared {
   struct artsDeque **deque;
   struct artsDeque **receiverDeque;
   struct artsDeque **gpuDeque;
+#ifdef USE_MPSC_INBOX
+  struct artsMpscQueue **inbox;  // MPSC inbox queues for affinity-based scheduling
+#endif
   struct artsRouteTable **routeTable;
   struct artsRouteTable **gpuRouteTable;
   struct artsRouteTable *remoteRouteTable;
@@ -118,6 +125,9 @@ struct artsRuntimePrivate {
   struct artsDeque *myDeque;
   struct artsDeque *myNodeDeque;
   struct artsDeque *myGpuDeque;
+#ifdef USE_MPSC_INBOX
+  struct artsMpscQueue *myInbox;  // MPSC inbox for affinity-based scheduling
+#endif
   unsigned int coreId;
   unsigned int threadId;
   unsigned int groupId;
